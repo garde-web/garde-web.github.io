@@ -1,3 +1,4 @@
+import * as pg from "./pages.js";
 import { auth, db, provider } from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -22,9 +23,11 @@ async function login() {
 function nav() {
   const h = location.hash || "#/";
   const l = (href, label) => `<a class="l" href="${href}" ${h === href ? "aria-current=page" : ""}>${label}</a>`;
+  const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
   $("#nav").innerHTML = `<a class="logo" href="#/">Recolio</a>` + (user
-    ? `${l("#/dashboard", "My recipes")}${l("#/add", "Add recipe")}<img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"><button class="btn" id="out">Sign out</button>`
-    : `${l("#/", "Home")}<a class="btn main" href="#/login">Sign in</a>`);
+    ? `${l("#/dashboard", "My recipes")}${l("#/collections", "Collections")}${l("#/shopping", "Shopping")}${l("#/add", "Add recipe")}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
+    : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
+  $("#foot").innerHTML = pg.footer();
   const o = $("#out"); if (o) o.onclick = () => signOut(auth).then(() => location.hash = "#/");
 }
 
@@ -32,33 +35,15 @@ async function route() {
   if (!ready) return;
   nav();
   const [, page, id] = (location.hash || "#/").split("/");
-  const guarded = ["dashboard", "add", "recipe", "edit"];
+  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "shopping", "settings"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
-  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id) }[page] || home)();
+  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, shopping, settings }[page] || home)();
   window.scrollTo(0, 0);
 }
 
-function home() {
-  app.innerHTML = `
-  <section class="hero">
-    <div>
-      <h1>Every recipe you've loved, in one place.</h1>
-      <p class="lead">Save a recipe from any website, snap a photo of a handwritten card, or type it in. Recolio keeps it all searchable and ready when you're cooking.</p>
-      <div class="row"><a class="btn main" href="#/${user ? "add" : "login"}">${user ? "Add a recipe" : "Start your collection"}</a>${user ? `<a class="btn" href="#/dashboard">My recipes</a>` : ""}</div>
-    </div>
-    <div class="stack" aria-hidden="true">
-      <div class="card glass"><span class="tag">From a website</span><h3>Brown butter cookies</h3><small>35 min · 24 cookies</small></div>
-      <div class="card glass"><span class="tag">Scanned from paper</span><h3>Nonna's lemon bars</h3><small>Handwritten card, saved forever</small></div>
-      <div class="card glass"><span class="tag">Favorite</span><h3>Weeknight green curry</h3><small>25 min · serves 4</small></div>
-    </div>
-  </section>
-  <section class="features">
-    <div class="glass"><h3>Import from any link</h3><p>Paste a recipe URL and Recolio pulls in the title, ingredients and steps.</p></div>
-    <div class="glass"><h3>Scan paper recipes</h3><p>Upload a photo of a cookbook page or recipe card and turn it into editable text.</p></div>
-    <div class="glass"><h3>Find it fast</h3><p>Search by name, ingredient or tag, and pin your favorites to the top.</p></div>
-  </section>`;
-}
+const home = () => { app.innerHTML = pg.home(user); };
+const stat = f => () => { app.innerHTML = pg[f](); };
 
 function loginView() {
   app.innerHTML = `<div class="center glass"><h2>Welcome to Recolio</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
@@ -82,7 +67,7 @@ async function dashboard() {
   const draw = () => {
     const f = all.filter(r => (!fav || r.favorite) && (`${r.title} ${(r.tags || []).join(" ")} ${(r.ingredients || []).join(" ")}`).toLowerCase().includes(q));
     $("#list").innerHTML = !all.length
-      ? `<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<p><br><a class="btn main" href="#/add">Add recipe</a></p></div>`
+      ? `<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<br><a class="btn main" href="#/add">Add recipe</a></div>`
       : !f.length ? `<div class="empty glass"><h3>Nothing matches</h3>Try a different search or clear the Favorites filter.</div>`
       : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img" style="${r.image ? `background-image:url('${esc(r.image)}')` : ""}">${r.image ? "" : "🍽️"}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
   };
@@ -99,29 +84,34 @@ async function detail(id) {
     ${r.image ? `<div class="cover" style="background-image:url('${esc(r.image)}')"></div>` : ""}
     <div class="hdr"><div><h2>${esc(r.title)}</h2><p class="meta">${esc([r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · "))}${r.source ? ` · <a href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">Original</a>` : ""}</p></div>
       <div class="row"><button class="btn" id="fv">${r.favorite ? "★ Favorited" : "☆ Favorite"}</button><a class="btn" href="#/edit/${id}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
-    <div class="panel glass"><h3>Ingredients</h3><br><ul>${(r.ingredients || []).map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>
-    <div class="panel glass"><h3>Steps</h3><br><ol>${(r.steps || []).map(i => `<li>${esc(i)}</li>`).join("")}</ol>${r.notes ? `<br><h3>Notes</h3><p class="meta">${esc(r.notes)}</p>` : ""}</div></div>`;
+    <div class="panel glass"><h3>Ingredients</h3><ul>${(r.ingredients || []).map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>
+    <div class="panel glass"><h3>Steps</h3><ol>${(r.steps || []).map(i => `<li>${esc(i)}</li>`).join("")}</ol>${r.notes ? `<h3 style="margin-top:28px">Notes</h3><p class="meta notes">${esc(r.notes)}</p>` : ""}</div></div>`;
   $("#fv").onclick = async () => { await updateDoc(doc(db, "users", user.uid, "recipes", id), { favorite: !r.favorite }); recipes = null; detail(id); };
   $("#del").onclick = async () => { if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return; await deleteDoc(doc(db, "users", user.uid, "recipes", id)); recipes = null; toast("Recipe deleted"); location.hash = "#/dashboard"; };
 }
 
 // ---- Import helpers ----
-const dur = iso => { const m = /P(?:T)?(?:(\d+)H)?(?:(\d+)M)?/.exec(iso || ""); return m && (m[1] || m[2]) ? [m[1] && m[1] + " h", m[2] && m[2] + " min"].filter(Boolean).join(" ") : ""; };
+const txt = h => new DOMParser().parseFromString(String(h ?? ""), "text/html").body.textContent.trim();
+const dur = iso => { const m = /P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?/.exec(iso || ""); return m && (m[1] || m[2]) ? [m[1] && m[1] + " h", m[2] && m[2] + " min"].filter(Boolean).join(" ") : ""; };
 const flat = n => !n ? [] : typeof n === "string" ? [n] : Array.isArray(n) ? n.flatMap(flat) : n.itemListElement ? flat(n.itemListElement) : n.text ? [n.text] : [];
-const clean = s => { const d = document.createElement("div"); d.innerHTML = s; return d.textContent.trim(); };
-
+const PROXIES = [u => "https://corsproxy.io/?url=" + encodeURIComponent(u), u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)];
+async function getHtml(url) {
+  for (const p of PROXIES) {
+    try { const c = new AbortController(), t = setTimeout(() => c.abort(), 10000); const r = await fetch(p(url), { signal: c.signal }); clearTimeout(t); if (r.ok) { const x = await r.text(); if (x.length > 500) return x; } } catch {}
+  }
+  throw new Error("fetch");
+}
 async function importUrl(url) {
-  const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url));
-  if (!res.ok) throw new Error("fetch");
-  const dom = new DOMParser().parseFromString(await res.text(), "text/html");
+  const dom = new DOMParser().parseFromString(await getHtml(url), "text/html");
   let rec = null;
-  const find = n => { if (!n || rec || typeof n !== "object") return; if (Array.isArray(n)) return n.forEach(find); if ([].concat(n["@type"] || []).includes("Recipe")) { rec = n; return; } find(n["@graph"]); };
+  const find = n => { if (!n || rec || typeof n !== "object") return; if (Array.isArray(n)) return n.forEach(find); if ([].concat(n["@type"] || []).some(t => /Recipe$/i.test(t))) { rec = n; return; } Object.values(n).forEach(find); };
   dom.querySelectorAll('script[type="application/ld+json"]').forEach(s => { try { find(JSON.parse(s.textContent)); } catch {} });
-  if (!rec) throw new Error("norecipe");
+  const og = k => dom.querySelector(`meta[property="og:${k}"]`)?.content || "";
+  if (!rec) throw Object.assign(new Error("norecipe"), { partial: { title: txt(og("title") || dom.title), image: og("image"), source: url } });
   const img = [].concat(rec.image || [])[0];
-  return { title: clean(rec.name || ""), source: url, time: dur(rec.totalTime), servings: String([].concat(rec.recipeYield || [""])[0]).replace(/\D+.*/, ""),
-    image: typeof img === "string" ? img : img?.url || "", ingredients: (rec.recipeIngredient || []).map(clean), steps: flat(rec.recipeInstructions).map(clean),
-    tags: String([].concat(rec.recipeCategory || [], rec.keywords || []).join(",")).split(",").map(t => t.trim()).filter(Boolean).slice(0, 5) };
+  return { title: txt(rec.name), source: url, time: dur(rec.totalTime), servings: String([].concat(rec.recipeYield || [""])[0]).replace(/\D.*/, ""),
+    image: typeof img === "string" ? img : img?.url || og("image"), ingredients: (rec.recipeIngredient || []).map(txt), steps: flat(rec.recipeInstructions).map(txt),
+    tags: [].concat(rec.recipeCategory || [], String(rec.keywords || "").split(",")).map(t => String(t).trim()).filter(Boolean).slice(0, 5) };
 }
 
 function form(id) {
@@ -136,8 +126,8 @@ function form(id) {
       <label for="ing">Ingredients (one per line)</label><textarea id="ing">${esc(r.ingredients.join("\n"))}</textarea>
       <label for="stp">Steps (one per line)</label><textarea id="stp">${esc(r.steps.join("\n"))}</textarea>
       <div class="two"><div><label for="tags">Tags (comma separated)</label><input id="tags" value="${esc(r.tags.join(", "))}" placeholder="dinner, vegetarian"></div><div><label for="img">Photo link</label><input id="img" value="${esc(r.image)}"></div></div>
-      <label for="notes">Notes</label><textarea id="notes" style="min-height:70px">${esc(r.notes)}</textarea><br>
-      <div class="row"><button class="btn main" id="save">Save recipe</button><a class="btn" href="#/dashboard">Cancel</a></div></div>`;
+      <label for="notes">Notes</label><textarea id="notes" style="min-height:70px">${esc(r.notes)}</textarea>
+      <div class="row" style="margin-top:28px"><button class="btn main" id="save">Save recipe</button><a class="btn" href="#/dashboard">Cancel</a></div></div>`;
     const st = m => { const e = $("#st"); if (e) e.textContent = m; };
     const cur = () => ({ title: $("#title").value, source: r.source, time: $("#time").value, servings: $("#serv").value, image: $("#img").value, ingredients: lines($("#ing").value), steps: lines($("#stp").value), tags: $("#tags").value.split(",").map(t => t.trim()).filter(Boolean), notes: $("#notes").value });
     if (!id) {
@@ -145,7 +135,7 @@ function form(id) {
         const u = $("#url").value.trim(); if (!u) return st("Paste a recipe link first.");
         st("Importing…");
         try { render({ ...base, ...(await importUrl(u)) }); $("#st").textContent = "Imported. Check the details, then save."; }
-        catch (e) { st(e.message === "norecipe" ? "That page doesn't share recipe data. Add it by hand below." : "Couldn't reach that page. Try again or add it by hand."); }
+        catch (e) { if (e.partial) { render({ ...base, ...e.partial }); $("#st").textContent = "No recipe data found on that page. I filled in the title and photo; add the rest below."; } else st("Couldn't reach that page right now. Try again or add it by hand."); }
       };
       $("#scan").onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
@@ -165,4 +155,39 @@ function form(id) {
   };
   if (!id) return render(base);
   getDoc(doc(db, "users", user.uid, "recipes", id)).then(s => render({ ...base, ...s.data() }));
+}
+
+// ---- Collections, shopping list, settings ----
+async function collections() {
+  app.innerHTML = `<h1 class="pg">Collections</h1><p class="lead">Your recipes, grouped by tag.</p><div id="c"></div>`;
+  const all = await load(), g = {};
+  all.forEach(r => (r.tags?.length ? r.tags : ["Untagged"]).forEach(t => (g[t.toLowerCase()] ||= { n: t, r: [] }).r.push(r)));
+  $("#c").innerHTML = all.length ? Object.values(g).sort((a, b) => b.r.length - a.r.length).map(x => `<div class="sect"><h3>${esc(x.n)} <small class="meta">${x.r.length}</small></h3><div class="grid">${x.r.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="body"><h3>${esc(r.title)}</h3><small>${esc(r.time || "")}</small></div></a>`).join("")}</div></div>`).join("")
+    : `<div class="empty glass"><h3>No collections yet</h3>Add tags like "dinner" or "baking" to your recipes and they'll group here.<br><a class="btn main" href="#/add">Add recipe</a></div>`;
+}
+
+async function shopping() {
+  const all = await load(), ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
+  let pick = ls("recolio.pick", []), done = ls("recolio.done", []);
+  const draw = () => {
+    const items = [...new Set(all.filter(r => pick.includes(r.id)).flatMap(r => r.ingredients || []).map(i => i.trim()))];
+    app.innerHTML = `<h1 class="pg">Shopping list</h1><p class="lead">Pick the recipes you're cooking and get one combined checklist.</p>
+    ${all.length ? `<div class="detail"><div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label></li>`).join("")}</ul></div>
+    <div class="panel glass"><h3>To buy</h3>${items.length ? `<ul class="tick">${items.map((i, n) => `<li><label><input type="checkbox" data-i="${n}" ${done.includes(i) ? "checked" : ""}><span>${esc(i)}</span></label></li>`).join("")}</ul>` : `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
+    : `<div class="empty glass"><h3>No recipes to shop for</h3>Add a recipe first.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
+    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("recolio.pick", JSON.stringify(pick)); } catch {} draw(); });
+    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("recolio.done", JSON.stringify(done)); } catch {} draw(); });
+  };
+  draw();
+}
+
+function settings() {
+  app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}</p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
+  <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
+  $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
+  $("#exp").onclick = async () => {
+    const all = (await load()).map(({ createdAt, ...r }) => r);
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "recolio-recipes.json" });
+    a.click(); toast("Export downloaded");
+  };
 }
