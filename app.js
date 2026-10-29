@@ -1,18 +1,23 @@
 import * as pg from "./pages.js";
 import { auth, db, provider } from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
 const app = $("#app");
-let user = null, ready = false, recipes = null;
+let user = null, ready = false, recipes = null, isStaff = false, isReserve = false, unsub = null;
+const FREE_LIMIT = 30;
 
 const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2600); };
 const col = () => collection(db, "users", user.uid, "recipes");
 
-onAuthStateChanged(auth, u => { user = u; ready = true; recipes = null; route(); });
+onAuthStateChanged(auth, async u => {
+  user = u; isStaff = isReserve = false; recipes = null;
+  if (u) { const [a, b] = await Promise.all([getDoc(doc(db, "staff", u.uid)).catch(() => null), getDoc(doc(db, "reserve", u.uid)).catch(() => null)]); isStaff = !!a?.exists(); isReserve = !!b?.exists(); }
+  ready = true; route();
+});
 window.addEventListener("hashchange", route);
 
 async function login() {
@@ -24,9 +29,9 @@ function nav() {
   const h = location.hash || "#/";
   const l = (href, label) => `<a class="l" href="${href}" ${h === href ? "aria-current=page" : ""}>${label}</a>`;
   const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
-  $("#nav").innerHTML = `<a class="logo" href="#/">Recolio</a>` + (user
-    ? `${l("#/dashboard", "My recipes")}${l("#/collections", "Collections")}${l("#/shopping", "Shopping")}${l("#/add", "Add recipe")}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
-    : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
+  $("#nav").innerHTML = `<a class="logo" href="#/">Commis</a>` + (user
+    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/shopping", "Shopping")}${l("#/add", "Add")}${l("#/support", "Support")}${l("#/reserve", "Reserve")}${isStaff ? l("#/staff", "Staff") : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
+    : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/reserve", "Reserve")}${lh("#/support", "Support")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
   $("#foot").innerHTML = pg.footer();
   const o = $("#out"); if (o) o.onclick = () => signOut(auth).then(() => location.hash = "#/");
 }
@@ -34,11 +39,12 @@ function nav() {
 async function route() {
   if (!ready) return;
   nav();
+  unsub?.(); unsub = null;
   const [, page, id] = (location.hash || "#/").split("/");
-  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "shopping", "settings"];
+  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "shopping", "settings", "ticket", "staff"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
-  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, shopping, settings }[page] || home)();
+  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, shopping, settings, support, ticket: () => ticket(id), staff, reserve }[page] || home)();
   window.scrollTo(0, 0);
 }
 
@@ -46,7 +52,7 @@ const home = () => { app.innerHTML = pg.home(user); };
 const stat = f => () => { app.innerHTML = pg[f](); };
 
 function loginView() {
-  app.innerHTML = `<div class="center glass"><h2>Welcome to Recolio</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
+  app.innerHTML = `<div class="center glass"><h2>Welcome to Commis</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
   $("#g").onclick = login;
 }
 
@@ -239,7 +245,7 @@ function form(id) {
       const d = cur(); if (!d.title.trim()) { toast("Add a title first"); return; }
       try {
         if (id) await updateDoc(doc(db, "users", user.uid, "recipes", id), d);
-        else await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() });
+        else { if (!isReserve && (await load()).length >= FREE_LIMIT) { toast(`Free accounts hold ${FREE_LIMIT} recipes. Commis Reserve removes the limit.`); return; } await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() }); }
         recipes = null; toast("Recipe saved"); location.hash = "#/dashboard";
       } catch { toast("Couldn't save. Check your connection and try again."); }
     };
@@ -259,26 +265,132 @@ async function collections() {
 
 async function shopping() {
   const all = await load(), ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
-  let pick = ls("recolio.pick", []), done = ls("recolio.done", []);
+  let pick = ls("commis.pick", []), done = ls("commis.done", []);
   const draw = () => {
     const items = [...new Set(all.filter(r => pick.includes(r.id)).flatMap(r => r.ingredients || []).map(i => i.trim()))];
     app.innerHTML = `<h1 class="pg">Shopping list</h1><p class="lead">Pick the recipes you're cooking and get one combined checklist.</p>
     ${all.length ? `<div class="detail"><div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label></li>`).join("")}</ul></div>
     <div class="panel glass"><h3>To buy</h3>${items.length ? `<ul class="tick">${items.map((i, n) => `<li><label><input type="checkbox" data-i="${n}" ${done.includes(i) ? "checked" : ""}><span>${esc(i)}</span></label></li>`).join("")}</ul>` : `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
     : `<div class="empty glass"><h3>No recipes to shop for</h3>Add a recipe first.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
-    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("recolio.pick", JSON.stringify(pick)); } catch {} draw(); });
-    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("recolio.done", JSON.stringify(done)); } catch {} draw(); });
+    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("commis.pick", JSON.stringify(pick)); } catch {} draw(); });
+    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("commis.done", JSON.stringify(done)); } catch {} draw(); });
   };
   draw();
 }
 
 function settings() {
   app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}</p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
+  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">COMMIS RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Commis Reserve"}</a></div></div>
   <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
   $("#exp").onclick = async () => {
     const all = (await load()).map(({ createdAt, ...r }) => r);
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "recolio-recipes.json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "commis-recipes.json" });
     a.click(); toast("Export downloaded");
   };
+}
+
+// ---- Support tickets, staff page, Commis Reserve ----
+const CATS = ["Account", "Recipes", "Importing", "Photo upload", "Commis Reserve", "Other"];
+const when = ts => { const d = ts?.toDate?.(); return d ? d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "just now"; };
+const stPill = s => `<span class="st ${s}">${s[0].toUpperCase() + s.slice(1)}</span>`;
+
+async function createTicket(subject, category, text) {
+  const now = serverTimestamp();
+  const t = await addDoc(collection(db, "tickets"), { uid: user.uid, email: user.email || "", name: user.displayName || "", subject, category, status: "open", priority: isReserve, lastFrom: "user", createdAt: now, updatedAt: now });
+  await addDoc(collection(db, "tickets", t.id, "messages"), { from: "user", uid: user.uid, name: user.displayName || "You", text, createdAt: now });
+  return t.id;
+}
+
+async function support() {
+  if (!user) { app.innerHTML = `<div class="center glass"><h2>Support</h2><p>Sign in to open a ticket and follow replies from our team.</p><a class="btn main" href="#/login">Sign in</a></div>`; return; }
+  app.innerHTML = `<h1 class="pg">Support</h1><p class="lead">Tell us what's going on and our team will reply in your ticket.${isReserve ? " As a Reserve member, you're at the front of the line." : ""}</p>
+  <div class="detail"><div class="panel glass"><h3>New ticket</h3>
+    <label for="cat">Topic</label><select id="cat">${CATS.map(c => `<option>${c}</option>`).join("")}</select>
+    <label for="sub">Subject</label><input id="sub" maxlength="120">
+    <label for="msg">Message</label><textarea id="msg" maxlength="4000" placeholder="What happened, and what did you expect? For import problems, include the link."></textarea>
+    <div class="row" style="margin-top:24px"><button class="btn main" id="send">Send ticket</button></div></div>
+  <div><h3 style="margin-bottom:16px">Your tickets</h3><div id="mine"><p class="meta">Loading…</p></div></div></div>`;
+  $("#send").onclick = async e => {
+    const sub = $("#sub").value.trim(), msg = $("#msg").value.trim();
+    if (!sub || !msg) return toast("Add a subject and a message");
+    e.target.disabled = true;
+    try { const id = await createTicket(sub, $("#cat").value, msg); toast("Ticket sent"); location.hash = "#/ticket/" + id; }
+    catch { e.target.disabled = false; toast("Couldn't send. Please try again."); }
+  };
+  try {
+    const snap = await getDocs(query(collection(db, "tickets"), where("uid", "==", user.uid)));
+    const ts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+    $("#mine").innerHTML = ts.length ? ts.map(t => `<a class="trow glass" href="#/ticket/${t.id}"><b>${esc(t.subject)}</b>${stPill(t.status)}<small>${esc(t.category)} · ${when(t.updatedAt)}</small></a>`).join("") : `<div class="empty glass"><h3>No tickets yet</h3>When you open one, it shows up here.</div>`;
+  } catch { $("#mine").innerHTML = `<p class="meta">Couldn't load your tickets.</p>`; }
+}
+
+function ticket(id) {
+  app.innerHTML = `<p class="meta">Loading…</p>`;
+  let t = null, msgs = [], has = null;
+  const draw = () => {
+    if (!t) return;
+    const mine = t.uid === user.uid, staff = isStaff && !mine;
+    const keep = $("#rep")?.value || "", focus = document.activeElement?.id === "rep";
+    app.innerHTML = `<a class="meta" href="#/${staff ? "staff" : "support"}">← Back</a>
+    <div class="row" style="justify-content:space-between;margin:16px 0 6px"><h1 class="pg" style="margin:0">${esc(t.subject)}</h1><div>${t.priority ? '<span class="badge">RESERVE</span> ' : ""}${stPill(t.status)}</div></div>
+    <p class="meta">${esc(t.category)} · Opened ${when(t.createdAt)}${staff ? ` · ${esc(t.name)} (${esc(t.email)})` : ""}</p>
+    <div class="thread" aria-live="polite">${msgs.map(m => `<div class="msg ${m.from === "staff" ? "staff" : "user"}"><small>${m.from === "staff" ? "Commis team" : esc(m.name || "You")} · ${when(m.createdAt)}</small>${esc(m.text)}</div>`).join("")}</div>
+    <div class="panel glass"><label for="rep">${t.status === "closed" ? "This ticket is closed. Replying will reopen it." : "Reply"}</label><textarea id="rep" maxlength="4000"></textarea>
+      <div class="row" style="margin-top:20px"><button class="btn main" id="go">Send reply</button>
+      ${staff ? `<select id="sts" style="width:auto" aria-label="Status">${["open", "pending", "closed"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select><button class="btn" id="rsv">${has ? "Revoke" : "Grant"} Commis Reserve</button>` : t.status === "closed" ? "" : `<button class="btn" id="cls">Close ticket</button>`}</div></div>`;
+    $("#rep").value = keep; if (focus) $("#rep").focus();
+    $("#go").onclick = async () => {
+      const text = $("#rep").value.trim(); if (!text) return;
+      const now = serverTimestamp(); $("#go").disabled = true;
+      try {
+        await addDoc(collection(db, "tickets", id, "messages"), { from: staff ? "staff" : "user", uid: user.uid, name: user.displayName || "", text, createdAt: now });
+        await updateDoc(doc(db, "tickets", id), { status: staff ? (t.status === "open" ? "pending" : t.status) : "open", lastFrom: staff ? "staff" : "user", updatedAt: now });
+      } catch { toast("Couldn't send your reply."); $("#go").disabled = false; }
+    };
+    const setStatus = s => updateDoc(doc(db, "tickets", id), { status: s, updatedAt: serverTimestamp() }).catch(() => toast("Couldn't update the ticket."));
+    if ($("#sts")) $("#sts").onchange = e => setStatus(e.target.value);
+    if ($("#cls")) $("#cls").onclick = () => setStatus("closed");
+    if ($("#rsv")) $("#rsv").onclick = async () => {
+      const ref = doc(db, "reserve", t.uid);
+      try { if (has) await deleteDoc(ref); else await setDoc(ref, { since: serverTimestamp(), by: user.uid }); has = !has; toast(has ? "Reserve granted" : "Reserve revoked"); draw(); }
+      catch { toast("Couldn't update Reserve."); }
+    };
+  };
+  const u1 = onSnapshot(doc(db, "tickets", id), async s => {
+    if (!s.exists()) { app.innerHTML = `<div class="empty glass"><h3>Ticket not found</h3><a class="btn" href="#/support">Back to support</a></div>`; return; }
+    t = { id, ...s.data() };
+    if (isStaff && t.uid !== user.uid && has === null) has = !!(await getDoc(doc(db, "reserve", t.uid)).catch(() => null))?.exists();
+    draw();
+  }, () => { app.innerHTML = `<div class="empty glass"><h3>No access</h3>You can only open your own tickets.<br><a class="btn" href="#/support">Back to support</a></div>`; });
+  const u2 = onSnapshot(query(collection(db, "tickets", id, "messages"), orderBy("createdAt")), s => { msgs = s.docs.map(d => d.data()); draw(); }, () => {});
+  unsub = () => { u1(); u2(); };
+}
+
+function staff() {
+  if (!isStaff) { app.innerHTML = `<div class="empty glass"><h3>Staff only</h3>This page is for authorised Commis accounts.<br><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
+  let all = [], f = "open", q = "";
+  app.innerHTML = `<h1 class="pg">Staff</h1><p class="lead">Every support ticket, newest activity first. Reserve members are pinned to the top.</p><div class="stats" id="stats"></div>
+  <div class="bar"><input id="q" type="search" placeholder="Search subject, name or email" aria-label="Search tickets">${["open", "pending", "closed", "all"].map(x => `<button class="chip" data-f="${x}" aria-pressed="${x === f}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><div id="tl"></div>`;
+  const draw = () => {
+    const n = s => all.filter(t => t.status === s).length;
+    $("#stats").innerHTML = ["open", "pending", "closed"].map(s => `<div class="glass"><b>${n(s)}</b>${s[0].toUpperCase() + s.slice(1)}</div>`).join("");
+    const list = all.filter(t => (f === "all" || t.status === f) && `${t.subject} ${t.name} ${t.email}`.toLowerCase().includes(q)).sort((a, b) => (b.priority - a.priority) || ((b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0)));
+    $("#tl").innerHTML = list.length ? list.map(t => `<a class="trow glass" href="#/ticket/${t.id}"><b>${t.priority ? '<span class="badge">RESERVE</span> ' : ""}${esc(t.subject)}</b>${stPill(t.status)}<small>${esc(t.name || t.email)} · ${esc(t.category)} · ${when(t.updatedAt)}${t.lastFrom === "user" && t.status !== "closed" ? " · awaiting reply" : ""}</small></a>`).join("") : `<div class="empty glass"><h3>Nothing here</h3>No tickets match this view.</div>`;
+  };
+  $("#q").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+  app.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { f = b.dataset.f; app.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", x === b)); draw(); });
+  unsub = onSnapshot(collection(db, "tickets"), s => { all = s.docs.map(d => ({ id: d.id, ...d.data() })); draw(); }, () => toast("Couldn't load tickets. Check your Firestore rules."));
+}
+
+function reserve() {
+  const perks = [["Unlimited recipes", `Free accounts hold ${FREE_LIMIT} recipes. Reserve has no limit.`], ["Priority support", "Your tickets are pinned to the top of our queue."], ["Early access", "Try new features before everyone else."]];
+  app.innerHTML = `<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#0a0a0a">INVITE ONLY</span><h1 style="margin:18px 0 .3em">Commis Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p><div class="row" id="cta"></div></div>
+    <ul>${perks.map(([h]) => `<li>${h}</li>`).join("")}<li>Reserve badge on your account</li></ul></section>
+    <div class="grid3">${perks.map(([h, p]) => `<div class="glass"><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
+    <p class="meta" style="text-align:center;margin-top:36px">Reserve is invite-only for now. Request access and our team will follow up in your ticket.</p>`;
+  const cta = $("#cta");
+  if (!user) cta.innerHTML = `<a class="btn main big" href="#/login">Sign in to request access</a>`;
+  else if (isReserve) cta.innerHTML = `<span class="badge" style="background:#fff;color:#0a0a0a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/support">Priority support</a>`;
+  else { cta.innerHTML = `<button class="btn main big" id="req">Request access</button>`; $("#req").onclick = async e => { e.target.disabled = true; try { location.hash = "#/ticket/" + await createTicket("Commis Reserve access request", "Commis Reserve", "I'd like to request access to Commis Reserve."); } catch { e.target.disabled = false; toast("Couldn't send your request."); } }; }
 }

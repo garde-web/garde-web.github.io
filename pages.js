@@ -9,14 +9,15 @@ const t = (k, c = "") => `<div class="toon ${c}" aria-hidden="true">${toon[k]}</
 
 const row = (flip, title, text, mock, toonKey) => `<section class="feat ${flip ? "flip" : ""}"><div class="copy"><h2>${title}</h2><p>${text}</p></div><div class="vis">${mock}${t(toonKey, "mini")}</div></section>`;
 
-export const footer = () => `<div class="foot glass"><div><a class="logo" href="#/">Recolio</a><p>Your recipes, all in one place.</p></div>
-<nav aria-label="Footer"><a href="#/features">Features</a><a href="#/about">About &amp; FAQ</a><a href="#/login">Sign in</a><a href="#/add">Add a recipe</a></nav></div>`;
+export const footer = () => `<div class="foot glass"><div><a class="logo" href="#/">Commis</a><p>Your recipes, all in one place.</p></div>
+<nav aria-label="Footer"><a href="#/features">Features</a><a href="#/reserve">Commis Reserve</a><a href="#/support">Support</a><a href="#/about">About &amp; FAQ</a><a href="#/login">Sign in</a><a href="#/add">Add a recipe</a></nav></div>`;
 
 const faq = `<div class="faq">${[
-  ["Is Recolio free?", "Yes. Creating an account and saving recipes costs nothing."],
+  ["Is Commis free?", "Yes. Free accounts can save up to 30 recipes. Commis Reserve removes the limit and adds priority support."],
   ["Who can see my recipes?", "Only you. Each account's recipes are private and tied to your Google sign-in."],
-  ["Does link import work on every site?", "It works on most sites that publish structured recipe data. If a page doesn't, Recolio fills in the title and photo and you add the rest."],
-  ["Can I use handwritten recipe cards?", "Yes. Upload a photo and Recolio reads the text. Clear, well-lit printed text works best; handwriting may need some cleanup."],
+  ["Does link import work on every site?", "It works on most sites that publish structured recipe data. If a page doesn't, Commis fills in the title and photo and you add the rest."],
+  ["Can I use handwritten recipe cards?", "Yes. Upload a photo and Commis reads the text. Clear, well-lit printed text works best; handwriting may need some cleanup."],
+  ["How do I get help?", "Open a ticket from the Support page. A member of the Commis team will reply right in your ticket."],
   ["Can I take my recipes with me?", "Yes. Settings has an export button that downloads everything as a file."]
 ].map(([q, a]) => `<details class="glass"><summary>${q}</summary><p>${a}</p></details>`).join("")}</div>`;
 
@@ -25,7 +26,7 @@ export function home(user) {
   return `
 <section class="hero">
   <div class="copy"><h1>Every recipe you've loved, in one place.</h1>
-    <p class="lead">Save a recipe from any website, snap a photo of a handwritten card, or type it in. Recolio keeps them all searchable and ready the moment you start cooking.</p>
+    <p class="lead">Save a recipe from any website, snap a photo of a handwritten card, or type it in. Commis keeps them all searchable and ready the moment you start cooking.</p>
     <div class="row"><a class="btn main big" href="${go}">${user ? "Add a recipe" : "Start your collection"}</a><a class="btn big" href="#/features">See what it does</a></div></div>
   <div class="scene">${t("tomato", "a")}${t("lemon", "b")}${t("pot", "c")}${t("avocado", "d")}
     <div class="win glass"><div class="dots"><i></i><i></i><i></i></div><h3>Weeknight green curry</h3><p class="meta">25 min · 4 servings</p>
@@ -34,13 +35,13 @@ export function home(user) {
 
 <div class="strip glass"><span>Blogs</span><span>Magazines</span><span>Cookbooks</span><span>Grandma's cards</span><span>Screenshots</span><span>Your own ideas</span></div>
 
-${row(0, "Paste a link, get a recipe.", "Found something delicious online? Drop the link into Recolio and it pulls in the title, ingredients, steps and photo. No more bookmarks you can never find again.",
+${row(0, "Paste a link, get a recipe.", "Found something delicious online? Drop the link into Commis and it pulls in the title, ingredients, steps and photo. No more bookmarks you can never find again.",
   `<div class="mock glass"><div class="url">https://your-favorite-recipe-site.com/pasta</div><button class="btn main" tabindex="-1">Import</button><p class="meta">Creamy lemon pasta<br>8 ingredients · 6 steps · 25 min</p></div>`, "lemon")}
-${row(1, "Scan the cards in your drawer.", "Take a photo of a cookbook page or a faded family recipe card. Recolio reads the text so you can tidy it up and keep it forever.",
+${row(1, "Scan the cards in your drawer.", "Take a photo of a cookbook page or a faded family recipe card. Commis reads the text so you can tidy it up and keep it forever.",
   `<div class="mock paper"><b>Nonna's lemon bars</b><br>2 cups flour · 1 cup butter<br>4 eggs · 3 lemons<br>Bake 350° for 25 min</div>`, "avocado")}
 ${row(0, "Find dinner in seconds.", "Search by name, ingredient or tag, star your favorites, and group recipes into collections like weeknight, baking or holiday.",
   `<div class="mock glass"><div class="url">chicken</div><div class="row"><span class="pill">Weeknight</span><span class="pill">Baking</span><span class="pill">Holiday</span></div><p class="meta">3 recipes match</p></div>`, "tomato")}
-${row(1, "Turn recipes into a shopping list.", "Pick the recipes you're cooking this week and Recolio combines the ingredients into one checklist you can use at the store.",
+${row(1, "Turn recipes into a shopping list.", "Pick the recipes you're cooking this week and Commis combines the ingredients into one checklist you can use at the store.",
   `<div class="mock glass"><label class="chk"><input type="checkbox" checked> Lemons</label><label class="chk"><input type="checkbox"> Butter</label><label class="chk"><input type="checkbox"> Spaghetti</label></div>`, "pot")}
 
 <section class="steps"><h2>Up and running in three steps</h2>
@@ -51,13 +52,16 @@ ${row(1, "Turn recipes into a shopping list.", "Pick the recipes you're cooking 
 <section class="steps"><h2>Made for real kitchens</h2>
   <div class="grid3">${[["🔒", "Private by default", "Only you can see your recipes."], ["📱", "Works on your phone", "Open a recipe on the counter or at the store."], ["⭐", "Favorites", "Keep the keepers one tap away."], ["🏷️", "Tags and collections", "Sort recipes your way."], ["🧾", "Notes", "Remember what you'd change next time."], ["⬇️", "Export anytime", "Your recipes are yours to take."]].map(([e, h, p]) => `<div class="glass"><span class="emoji">${e}</span><h3>${h}</h3><p>${p}</p></div>`).join("")}</div></section>
 
+<section class="band"><div><h2>Commis Reserve</h2><p class="lead" style="color:#bdbdbd">For people who cook a lot. Unlimited recipes, priority support, and first access to what we build next.</p><div class="row"><a class="btn main big" href="#/reserve">Learn more</a></div></div>
+  <ul><li>Unlimited saved recipes</li><li>Priority support, answered first</li><li>Reserve badge on your account</li><li>Early access to new features</li></ul></section>
+
 <section class="steps"><h2>Questions, answered</h2>${faq}</section>
 
 <section class="cta glass">${t("tomato", "l")}${t("lemon", "r")}<h2>Your next favorite recipe is waiting.</h2><p>Start saving the ones you love. It takes under a minute.</p><a class="btn main big" href="${go}">${user ? "Add a recipe" : "Get started free"}</a></section>`;
 }
 
-export const features = () => `<h1 class="pg">Features</h1><p class="lead">Everything Recolio does to keep your recipes organized.</p>
-<div class="grid3">${[["🔗", "Link import", "Pull a recipe from a web page into your collection."], ["📷", "Photo scan", "Read text from recipe cards and cookbook pages."], ["🔍", "Search", "Find recipes by name, ingredient or tag."], ["★", "Favorites", "Pin the recipes you make again and again."], ["🗂️", "Collections", "See recipes grouped by tag."], ["🛒", "Shopping list", "Combine ingredients from several recipes."], ["✏️", "Editing", "Fix amounts and add notes any time."], ["⬇️", "Export", "Download all your recipes as a file."], ["🔒", "Private", "Your recipes are visible only to you."]].map(([e, h, p]) => `<div class="glass panel"><span class="emoji">${e}</span><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
+export const features = () => `<h1 class="pg">Features</h1><p class="lead">Everything Commis does to keep your recipes organized.</p>
+<div class="grid3">${[["🔗", "Link import", "Pull a recipe from a web page into your collection."], ["📷", "Photo scan", "Read text from recipe cards and cookbook pages."], ["🔍", "Search", "Find recipes by name, ingredient or tag."], ["★", "Favorites", "Pin the recipes you make again and again."], ["🗂️", "Collections", "See recipes grouped by tag."], ["🛒", "Shopping list", "Combine ingredients from several recipes."], ["✏️", "Editing", "Fix amounts and add notes any time."], ["⬇️", "Export", "Download all your recipes as a file."], ["🔒", "Private", "Your recipes are visible only to you."], ["💬", "Support tickets", "Ask for help and follow the reply in one place."], ["♛", "Commis Reserve", "Unlimited recipes and priority support."]].map(([e, h, p]) => `<div class="glass panel"><span class="emoji">${e}</span><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
 <div class="row" style="margin-top:36px"><a class="btn main big" href="#/login">Get started free</a></div>`;
 
-export const about = () => `<h1 class="pg">About Recolio</h1><div class="story">${t("pot", "mini")}<p class="lead">Recolio started with a simple problem: loving to cook, but never being able to find the recipe you loved. They were scattered across bookmarks, screenshots and scraps of paper.</p><p>So we made one calm, good-looking place for all of them. Save a recipe from anywhere, find it in seconds, and get back to the stove.</p></div><h2>Questions, answered</h2>${faq}`;
+export const about = () => `<h1 class="pg">About Commis</h1><div class="story">${t("pot", "mini")}<p class="lead">Commis started with a simple problem: loving to cook, but never being able to find the recipe you loved. They were scattered across bookmarks, screenshots and scraps of paper.</p><p>In a professional kitchen, the commis is the chef who preps everything so the whole line can run smoothly. That is the idea here: one calm, good-looking place for all of them. Save a recipe from anywhere, find it in seconds, and get back to the stove.</p></div><h2>Questions, answered</h2>${faq}`;
