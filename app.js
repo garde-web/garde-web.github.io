@@ -29,7 +29,7 @@ function nav() {
   const h = location.hash || "#/";
   const l = (href, label) => `<a class="l" href="${href}" ${h === href ? "aria-current=page" : ""}>${label}</a>`;
   const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
-  $("#nav").innerHTML = `<a class="logo" href="#/">Commis</a>` + (user
+  $("#nav").innerHTML = `<a class="logo" href="#/">Garde</a>` + (user
     ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/shopping", "Shopping")}${l("#/add", "Add")}${l("#/support", "Support")}${l("#/reserve", "Reserve")}${isStaff ? l("#/staff", "Staff") : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
     : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/reserve", "Reserve")}${lh("#/support", "Support")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
   $("#foot").innerHTML = pg.footer();
@@ -52,7 +52,7 @@ const home = () => { app.innerHTML = pg.home(user); };
 const stat = f => () => { app.innerHTML = pg[f](); };
 
 function loginView() {
-  app.innerHTML = `<div class="center glass"><h2>Welcome to Commis</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
+  app.innerHTML = `<div class="center glass"><h2>Welcome to Garde</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
   $("#g").onclick = login;
 }
 
@@ -245,7 +245,7 @@ function form(id) {
       const d = cur(); if (!d.title.trim()) { toast("Add a title first"); return; }
       try {
         if (id) await updateDoc(doc(db, "users", user.uid, "recipes", id), d);
-        else { if (!isReserve && (await load()).length >= FREE_LIMIT) { toast(`Free accounts hold ${FREE_LIMIT} recipes. Commis Reserve removes the limit.`); return; } await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() }); }
+        else { if (!isReserve && (await load()).length >= FREE_LIMIT) { toast(`Free accounts hold ${FREE_LIMIT} recipes. Garde Reserve removes the limit.`); return; } await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() }); }
         recipes = null; toast("Recipe saved"); location.hash = "#/dashboard";
       } catch { toast("Couldn't save. Check your connection and try again."); }
     };
@@ -265,33 +265,33 @@ async function collections() {
 
 async function shopping() {
   const all = await load(), ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
-  let pick = ls("commis.pick", []), done = ls("commis.done", []);
+  let pick = ls("Garde.pick", []), done = ls("Garde.done", []);
   const draw = () => {
     const items = [...new Set(all.filter(r => pick.includes(r.id)).flatMap(r => r.ingredients || []).map(i => i.trim()))];
     app.innerHTML = `<h1 class="pg">Shopping list</h1><p class="lead">Pick the recipes you're cooking and get one combined checklist.</p>
     ${all.length ? `<div class="detail"><div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label></li>`).join("")}</ul></div>
     <div class="panel glass"><h3>To buy</h3>${items.length ? `<ul class="tick">${items.map((i, n) => `<li><label><input type="checkbox" data-i="${n}" ${done.includes(i) ? "checked" : ""}><span>${esc(i)}</span></label></li>`).join("")}</ul>` : `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
     : `<div class="empty glass"><h3>No recipes to shop for</h3>Add a recipe first.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
-    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("commis.pick", JSON.stringify(pick)); } catch {} draw(); });
-    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("commis.done", JSON.stringify(done)); } catch {} draw(); });
+    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("Garde.pick", JSON.stringify(pick)); } catch {} draw(); });
+    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("Garde.done", JSON.stringify(done)); } catch {} draw(); });
   };
   draw();
 }
 
 function settings() {
   app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}</p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
-  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">COMMIS RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Commis Reserve"}</a></div></div>
+  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">Garde RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Garde Reserve"}</a></div></div>
   <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
   $("#exp").onclick = async () => {
     const all = (await load()).map(({ createdAt, ...r }) => r);
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "commis-recipes.json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "Garde-recipes.json" });
     a.click(); toast("Export downloaded");
   };
 }
 
-// ---- Support tickets, staff page, Commis Reserve ----
-const CATS = ["Account", "Recipes", "Importing", "Photo upload", "Commis Reserve", "Other"];
+// ---- Support tickets, staff page, Garde Reserve ----
+const CATS = ["Account", "Recipes", "Importing", "Photo upload", "Garde Reserve", "Other"];
 const when = ts => { const d = ts?.toDate?.(); return d ? d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "just now"; };
 const stPill = s => `<span class="st ${s}">${s[0].toUpperCase() + s.slice(1)}</span>`;
 
@@ -335,10 +335,10 @@ function ticket(id) {
     app.innerHTML = `<a class="meta" href="#/${staff ? "staff" : "support"}">← Back</a>
     <div class="row" style="justify-content:space-between;margin:16px 0 6px"><h1 class="pg" style="margin:0">${esc(t.subject)}</h1><div>${t.priority ? '<span class="badge">RESERVE</span> ' : ""}${stPill(t.status)}</div></div>
     <p class="meta">${esc(t.category)} · Opened ${when(t.createdAt)}${staff ? ` · ${esc(t.name)} (${esc(t.email)})` : ""}</p>
-    <div class="thread" aria-live="polite">${msgs.map(m => `<div class="msg ${m.from === "staff" ? "staff" : "user"}"><small>${m.from === "staff" ? "Commis team" : esc(m.name || "You")} · ${when(m.createdAt)}</small>${esc(m.text)}</div>`).join("")}</div>
+    <div class="thread" aria-live="polite">${msgs.map(m => `<div class="msg ${m.from === "staff" ? "staff" : "user"}"><small>${m.from === "staff" ? "Garde team" : esc(m.name || "You")} · ${when(m.createdAt)}</small>${esc(m.text)}</div>`).join("")}</div>
     <div class="panel glass"><label for="rep">${t.status === "closed" ? "This ticket is closed. Replying will reopen it." : "Reply"}</label><textarea id="rep" maxlength="4000"></textarea>
       <div class="row" style="margin-top:20px"><button class="btn main" id="go">Send reply</button>
-      ${staff ? `<select id="sts" style="width:auto" aria-label="Status">${["open", "pending", "closed"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select><button class="btn" id="rsv">${has ? "Revoke" : "Grant"} Commis Reserve</button>` : t.status === "closed" ? "" : `<button class="btn" id="cls">Close ticket</button>`}</div></div>`;
+      ${staff ? `<select id="sts" style="width:auto" aria-label="Status">${["open", "pending", "closed"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select><button class="btn" id="rsv">${has ? "Revoke" : "Grant"} Garde Reserve</button>` : t.status === "closed" ? "" : `<button class="btn" id="cls">Close ticket</button>`}</div></div>`;
     $("#rep").value = keep; if (focus) $("#rep").focus();
     $("#go").onclick = async () => {
       const text = $("#rep").value.trim(); if (!text) return;
@@ -368,7 +368,7 @@ function ticket(id) {
 }
 
 function staff() {
-  if (!isStaff) { app.innerHTML = `<div class="empty glass"><h3>Staff only</h3>This page is for authorised Commis accounts.<br><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
+  if (!isStaff) { app.innerHTML = `<div class="empty glass"><h3>Staff only</h3>This page is for authorised Garde accounts.<br><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
   let all = [], f = "open", q = "";
   app.innerHTML = `<h1 class="pg">Staff</h1><p class="lead">Every support ticket, newest activity first. Reserve members are pinned to the top.</p><div class="stats" id="stats"></div>
   <div class="bar"><input id="q" type="search" placeholder="Search subject, name or email" aria-label="Search tickets">${["open", "pending", "closed", "all"].map(x => `<button class="chip" data-f="${x}" aria-pressed="${x === f}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><div id="tl"></div>`;
@@ -385,12 +385,12 @@ function staff() {
 
 function reserve() {
   const perks = [["Unlimited recipes", `Free accounts hold ${FREE_LIMIT} recipes. Reserve has no limit.`], ["Priority support", "Your tickets are pinned to the top of our queue."], ["Early access", "Try new features before everyone else."]];
-  app.innerHTML = `<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#0a0a0a">INVITE ONLY</span><h1 style="margin:18px 0 .3em">Commis Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p><div class="row" id="cta"></div></div>
+  app.innerHTML = `<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#0a0a0a">INVITE ONLY</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p><div class="row" id="cta"></div></div>
     <ul>${perks.map(([h]) => `<li>${h}</li>`).join("")}<li>Reserve badge on your account</li></ul></section>
     <div class="grid3">${perks.map(([h, p]) => `<div class="glass"><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
     <p class="meta" style="text-align:center;margin-top:36px">Reserve is invite-only for now. Request access and our team will follow up in your ticket.</p>`;
   const cta = $("#cta");
   if (!user) cta.innerHTML = `<a class="btn main big" href="#/login">Sign in to request access</a>`;
   else if (isReserve) cta.innerHTML = `<span class="badge" style="background:#fff;color:#0a0a0a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/support">Priority support</a>`;
-  else { cta.innerHTML = `<button class="btn main big" id="req">Request access</button>`; $("#req").onclick = async e => { e.target.disabled = true; try { location.hash = "#/ticket/" + await createTicket("Commis Reserve access request", "Commis Reserve", "I'd like to request access to Commis Reserve."); } catch { e.target.disabled = false; toast("Couldn't send your request."); } }; }
+  else { cta.innerHTML = `<button class="btn main big" id="req">Request access</button>`; $("#req").onclick = async e => { e.target.disabled = true; try { location.hash = "#/ticket/" + await createTicket("Garde Reserve access request", "Garde Reserve", "I'd like to request access to Garde Reserve."); } catch { e.target.disabled = false; toast("Couldn't send your request."); } }; }
 }
