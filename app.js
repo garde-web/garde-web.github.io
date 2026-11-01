@@ -1,7 +1,7 @@
 import * as pg from "./pages.js";
 import { LIBRARY } from "./library.js";
 import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
-import { auth, db, provider } from "./firebase-config.js";
+import { auth, db, provider, IMPORT_PROXY } from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -15,9 +15,16 @@ const FREE_LIMIT = 50;
 const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2600); };
 const col = () => collection(db, "users", user.uid, "recipes");
 
+let stopReserve = null;
 onAuthStateChanged(auth, async u => {
+  stopReserve?.(); stopReserve = null;
   user = u; isStaff = isReserve = false; recipes = null;
-  if (u) { const [a, b] = await Promise.all([getDoc(doc(db, "staff", u.uid)).catch(() => null), getDoc(doc(db, "reserve", u.uid)).catch(() => null)]); isStaff = !!a?.exists(); isReserve = !!b?.exists(); }
+  if (u) {
+    setDoc(doc(db, "profiles", u.uid), { name: u.displayName || "", email: u.email || "", photo: u.photoURL || "", lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+    const [a, b] = await Promise.all([getDoc(doc(db, "staff", u.uid)).catch(() => null), getDoc(doc(db, "reserve", u.uid)).catch(() => null)]);
+    isStaff = !!a?.exists(); isReserve = !!b?.exists();
+    stopReserve = onSnapshot(doc(db, "reserve", u.uid), x => { if (x.exists() !== isReserve) { isReserve = x.exists(); if (isReserve) toast("Garde Reserve is now active"); route(); } }, () => {});
+  }
   ready = true; route();
 });
 window.addEventListener("hashchange", route);
@@ -46,7 +53,7 @@ async function route() {
   const guarded = ["dashboard", "add", "recipe", "edit", "collections", "pantry", "shopping", "settings", "ticket", "staff", "sous"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
-  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, pantry, shopping: pantry, settings, support, ticket: () => ticket(id), staff, reserve, sous }[page] || home)();
+  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, pantry, shopping: pantry, settings, support, ticket: () => ticket(id), staff: () => staff(id), reserve, sous }[page] || home)();
   window.scrollTo(0, 0);
 }
 
@@ -77,7 +84,7 @@ async function dashboard() {
     $("#list").innerHTML = !all.length
       ? `<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<br><a class="btn main" href="#/add">Add recipe</a></div>`
       : !f.length ? `<div class="empty glass"><h3>Nothing matches</h3>Try a different search or clear the Favorites filter.</div>`
-      : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img" style="${r.image ? `background-image:url('${esc(r.image)}')` : ""}">${r.image ? "" : esc((r.title || "?").trim()[0] || "?")}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
+      : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img"><span>${esc((r.title || "?").trim()[0] || "?")}</span>${r.image ? `<img src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : ""}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
   };
   $("#q").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
   $("#fav").onclick = e => { fav = !fav; e.target.setAttribute("aria-pressed", fav); draw(); };
@@ -89,7 +96,7 @@ async function detail(id) {
   if (!s.exists()) { app.innerHTML = `<div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
   const r = { id, ...s.data() }, base = parseInt(r.servings) || 0;
   app.innerHTML = `<div class="detail">
-    ${r.image ? `<div class="cover" style="background-image:url('${esc(r.image)}')"></div>` : ""}
+    ${r.image ? `<img class="cover" src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
     <div class="hdr"><div><h2>${esc(r.title)}</h2><p class="meta">${esc([r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · "))}${r.source ? ` · <a href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">Original</a>` : ""}</p></div>
       <div class="row"><button class="btn" id="fv">${r.favorite ? "★ Favorited" : "☆ Favorite"}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/${id}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
     <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>${base ? `<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>` : ""}</div><ul id="il"></ul></div>
@@ -109,7 +116,8 @@ async function detail(id) {
 const txt = h => new DOMParser().parseFromString(String(h ?? ""), "text/html").body.textContent.trim();
 const dur = iso => { const m = /P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?/.exec(iso || ""); return m && (m[1] || m[2]) ? [m[1] && m[1] + " h", m[2] && m[2] + " min"].filter(Boolean).join(" ") : ""; };
 const flat = n => !n ? [] : typeof n === "string" ? [n] : Array.isArray(n) ? n.flatMap(flat) : n.itemListElement ? flat(n.itemListElement) : n.text ? [n.text] : [];
-const PROXIES = [u => "https://corsproxy.io/?url=" + encodeURIComponent(u), u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)];
+const absUrl = (u, base) => { try { return u ? new URL(u, base).href.replace(/^http:/, "https:") : ""; } catch { return ""; } };
+const PROXIES = [...(IMPORT_PROXY ? [u => IMPORT_PROXY + "?url=" + encodeURIComponent(u)] : []), u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), u => "https://corsproxy.io/?url=" + encodeURIComponent(u), u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)];
 const grab = async (u, ms = 12000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { signal: c.signal }); if (!r.ok) throw 0; const x = await r.text(); if (x.length < 300) throw 0; return x; } finally { clearTimeout(t); } };
 
 // Turns loose text (page text or OCR) into title / ingredients / steps
@@ -135,7 +143,7 @@ function parseText(text) {
       if (hasHead) { if (!out.title && c.length < 80) out.title = c; }
       else if (!out.title && c.length < 70 && !QTY.test(c)) out.title = c;
       else if (QTY.test(c) && c.length < 70) out.ingredients.push(c);
-      else if (c.length > 25) out.steps.push(c);
+      else if (c.length > 25 && out.ingredients.length) out.steps.push(c);
     }
   }
   return out;
@@ -150,7 +158,7 @@ function fromHtml(h, url) {
   if (rec) {
     const img = [].concat(rec.image || [])[0];
     return { title: txt(rec.name), source: url, time: dur(rec.totalTime), servings: String([].concat(rec.recipeYield || [""])[0]).replace(/\D.*/, ""),
-      image: typeof img === "string" ? img : img?.url || og("image"), ingredients: [].concat(rec.recipeIngredient || []).map(txt), steps: flat(rec.recipeInstructions).map(txt),
+      image: absUrl(typeof img === "string" ? img : img?.url || og("image"), url), ingredients: [].concat(rec.recipeIngredient || []).map(txt), steps: flat(rec.recipeInstructions).map(txt),
       tags: [].concat(rec.recipeCategory || [], String(rec.keywords || "").split(",")).map(t => String(t).trim()).filter(Boolean).slice(0, 5) };
   }
   const title = txt(og("title") || dom.querySelector("h1")?.textContent || dom.title).split(/\s[|–-]\s/)[0];
@@ -159,7 +167,7 @@ function fromHtml(h, url) {
   let ing = pickAll(['[itemprop="recipeIngredient"]', '[itemprop="ingredients"]', ".wprm-recipe-ingredient", ".tasty-recipes-ingredients li", ".mv-create-ingredients li", ".recipe-ingredients li", '[class*="ingredient"] li']).filter(l => l.length < 160);
   let steps = pickAll(['[itemprop="recipeInstructions"] li', '[itemprop="recipeInstructions"] p', ".wprm-recipe-instruction-text", ".tasty-recipes-instructions li", ".mv-create-instructions li", ".recipe-instructions li", '[class*="instruction"] li', '[class*="direction"] li']);
   if (ing.length < 2 || !steps.length) { const h = byHeading(dom); if (ing.length < 2) ing = h.ing; if (!steps.length) steps = h.steps; }
-  return ing.length > 1 ? { title, source: url, image: og("image"), ingredients: ing, steps } : null;
+  return ing.length > 1 ? { title, source: url, image: absUrl(og("image"), url), ingredients: ing, steps } : null;
 }
 
 // Last resort: find the "Ingredients" and "Instructions" headings and take only the list or steps right after them
@@ -193,7 +201,7 @@ async function importUrl(url) {
   try { return await Promise.any(tries); } catch {}
   if (!seen) throw new Error("fetch");
   const dom = new DOMParser().parseFromString(seen, "text/html"), og = k => dom.querySelector(`meta[property="og:${k}"]`)?.content || "";
-  throw Object.assign(new Error("norecipe"), { partial: { title: txt(og("title") || dom.title), image: og("image"), source: url } });
+  throw Object.assign(new Error("norecipe"), { partial: { title: txt(og("title") || dom.title), image: absUrl(og("image"), url), source: url } });
 }
 
 // ---- Photo reading (OCR) ----
@@ -225,6 +233,7 @@ function form(id) {
         <div class="row nowrap"><input id="url" type="url" placeholder="https://…" aria-label="Recipe link"><button class="btn main" id="imp">Import</button></div></div>
       <div class="panel glass drop" id="drop"><h3>Upload a photo</h3><p class="meta">Recipe card, cookbook page or screenshot. Drop it here, choose a file, or paste an image.</p>
         <label class="btn main" for="scan">Choose photo</label><input class="sr" id="scan" type="file" accept="image/*"></div></div>
+      <details class="panel glass paste" id="pastebox"><summary>Paste recipe text instead</summary><p class="meta">Copy everything from a recipe page (or just the ingredients and steps) and paste it here. Garde picks out the recipe and skips the story.</p><textarea id="ptxt" placeholder="Paste here…"></textarea><div class="row" style="margin-top:16px"><button class="btn main" id="pgo">Extract recipe</button></div></details>
       <div class="prog" id="prog" hidden><span class="bar"><i></i></span><small id="pt"></small></div>`}
     <p class="status" id="st" role="status">${esc(msg)}</p>
     <div class="panel glass"><label for="title">Title</label><input id="title" value="${esc(r.title)}" required>
@@ -243,10 +252,11 @@ function form(id) {
         if (!/^https?:\/\//i.test(u)) return st("Paste a full recipe link first.");
         busy(true, "Fetching the recipe…"); st("");
         try { const x = await importUrl(u); busy(false); render(fill(cur(), x), "Imported. Check the details, then save."); }
-        catch (e) { busy(false); if (e.partial) render(fill(cur(), e.partial), "That site didn't let me read its recipe, so I added the title and photo. Copy the ingredients and steps in below, or try uploading a screenshot instead."); else st("Couldn't reach that page. Check the link, or add the recipe by hand."); }
+        catch (e) { busy(false); const m = "Some sites block automated access. Paste the recipe text below and Garde will pick out the ingredients and steps."; if (e.partial) render(fill(cur(), e.partial), "I found the title and photo but not the recipe. " + m); else st("Couldn't open that page. " + m); const b = $("#pastebox"); if (b) b.open = true; }
       };
       $("#imp").onclick = () => doImport($("#url").value);
       $("#url").onkeydown = e => { if (e.key === "Enter") doImport(e.target.value); };
+      $("#pgo").onclick = () => { const t = $("#ptxt").value.trim(); if (t.length < 40) return st("Paste the recipe text first."); const p = parseText(t); if (!p.ingredients.length && !p.steps.length) return st("I couldn't find ingredients or steps in that text. Make sure it includes the ingredient list."); render(fill(cur(), p), "Recipe extracted. Check the details, then save."); };
       $("#url").onpaste = e => { const t = e.clipboardData.getData("text").trim(); if (/^https?:\/\//i.test(t)) setTimeout(() => doImport(t), 0); };
       const doScan = async f => {
         if (!f || !f.type.startsWith("image/")) return st("Choose an image file (JPG or PNG).");
@@ -311,7 +321,7 @@ async function pantry() {
 }
 
 function settings() {
-  app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}</p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
+  app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}<br>Account ID: <code>${esc(user.uid)}</code></p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
   <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">GARDE RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Garde Reserve"}</a></div></div>
   <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
@@ -399,10 +409,11 @@ function ticket(id) {
   unsub = () => { u1(); u2(); };
 }
 
-function staff() {
+function staff(tab) {
   if (!isStaff) { app.innerHTML = `<div class="empty glass"><h3>Staff only</h3>This page is for authorised Garde accounts.<br><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
+  if (tab === "members") return members();
   let all = [], f = "open", q = "";
-  app.innerHTML = `<h1 class="pg">Staff</h1><p class="lead">Every support ticket, newest activity first. Reserve members are pinned to the top.</p><div class="stats" id="stats"></div>
+  app.innerHTML = `<h1 class="pg">Staff</h1><div class="bar" style="margin-top:0"><a class="chip" href="#/staff" aria-pressed="true">Tickets</a><a class="chip" href="#/staff/members" aria-pressed="false">Members</a></div><p class="lead">Every support ticket, newest activity first. Reserve members are pinned to the top.</p><div class="stats" id="stats"></div>
   <div class="bar"><input id="q" type="search" placeholder="Search subject, name or email" aria-label="Search tickets">${["open", "pending", "closed", "all"].map(x => `<button class="chip" data-f="${x}" aria-pressed="${x === f}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><div id="tl"></div>`;
   const draw = () => {
     const n = s => all.filter(t => t.status === s).length;
@@ -463,4 +474,29 @@ async function sous() {
   };
   draw();
   $("#sq").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+}
+
+// ---- Staff: members and Reserve access ----
+function members() {
+  app.innerHTML = `<h1 class="pg">Staff</h1><div class="bar" style="margin-top:0"><a class="chip" href="#/staff" aria-pressed="false">Tickets</a><a class="chip" href="#/staff/members" aria-pressed="true">Members</a></div>
+  <p class="lead">Everyone who has signed in. Grant or revoke Garde Reserve here.</p>
+  <div class="bar"><input id="mq" type="search" placeholder="Search by name or email" aria-label="Search members"><button class="chip" id="ro" aria-pressed="false">Reserve only</button></div><div id="ml"></div>
+  <div class="panel glass" style="margin-top:28px"><h3>Add by account ID</h3><p class="meta">For someone who hasn't signed in since this page was added. They can copy their ID from Settings, or you can find it in Firebase under Authentication.</p>
+  <div class="row nowrap" style="margin-top:16px"><input id="uid" placeholder="Account ID" aria-label="Account ID"><button class="btn main" id="gu">Grant Reserve</button></div></div>`;
+  let all = [], rs = new Set(), q = "", only = false;
+  const setR = async (uid, on) => {
+    try { if (on) await setDoc(doc(db, "reserve", uid), { since: serverTimestamp(), by: user.uid }); else await deleteDoc(doc(db, "reserve", uid)); toast(on ? "Reserve granted" : "Reserve revoked"); }
+    catch { toast("Couldn't update. Check your Firestore rules."); }
+  };
+  const draw = () => {
+    const list = all.filter(m => (!only || rs.has(m.id)) && `${m.name} ${m.email}`.toLowerCase().includes(q)).sort((a, b) => (b.lastSeen?.seconds || 0) - (a.lastSeen?.seconds || 0));
+    $("#ml").innerHTML = list.length ? list.map(m => `<div class="trow glass"><b>${esc(m.name || m.email)} ${rs.has(m.id) ? '<span class="badge">RESERVE</span>' : ""}</b><button class="btn ${rs.has(m.id) ? "" : "main"}" data-u="${esc(m.id)}">${rs.has(m.id) ? "Revoke" : "Grant Reserve"}</button><small>${esc(m.email)} · last seen ${when(m.lastSeen)}</small></div>`).join("") : `<div class="empty glass"><h3>No members found</h3>People appear here after they sign in to Garde.</div>`;
+    app.querySelectorAll("[data-u]").forEach(b => b.onclick = () => setR(b.dataset.u, !rs.has(b.dataset.u)));
+  };
+  $("#mq").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+  $("#ro").onclick = e => { only = !only; e.target.setAttribute("aria-pressed", only); draw(); };
+  $("#gu").onclick = () => { const v = $("#uid").value.trim(); if (v.length < 10) return toast("Paste a full account ID"); setR(v, true); $("#uid").value = ""; };
+  const u1 = onSnapshot(collection(db, "profiles"), x => { all = x.docs.map(d => ({ id: d.id, ...d.data() })); draw(); }, () => toast("Couldn't load members. Publish the updated Firestore rules."));
+  const u2 = onSnapshot(collection(db, "reserve"), x => { rs = new Set(x.docs.map(d => d.id)); draw(); }, () => {});
+  unsub = () => { u1(); u2(); };
 }
