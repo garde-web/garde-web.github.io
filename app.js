@@ -1,4 +1,6 @@
 import * as pg from "./pages.js";
+import { LIBRARY } from "./library.js";
+import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
 import { auth, db, provider } from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -8,7 +10,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
 const app = $("#app");
 let user = null, ready = false, recipes = null, isStaff = false, isReserve = false, unsub = null;
-const FREE_LIMIT = 30;
+const FREE_LIMIT = 50;
 
 const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2600); };
 const col = () => collection(db, "users", user.uid, "recipes");
@@ -30,7 +32,7 @@ function nav() {
   const l = (href, label) => `<a class="l" href="${href}" ${h === href ? "aria-current=page" : ""}>${label}</a>`;
   const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
   $("#nav").innerHTML = `<a class="logo" href="#/">Garde</a>` + (user
-    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/shopping", "Shopping")}${l("#/add", "Add")}${l("#/support", "Support")}${l("#/reserve", "Reserve")}${isStaff ? l("#/staff", "Staff") : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
+    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/sous", "Sous")}${l("#/pantry", "Pantry")}${l("#/add", "Add")}${l("#/support", "Support")}${l("#/reserve", "Reserve")}${isStaff ? l("#/staff", "Staff") : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
     : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/reserve", "Reserve")}${lh("#/support", "Support")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
   $("#foot").innerHTML = pg.footer();
   const o = $("#out"); if (o) o.onclick = () => signOut(auth).then(() => location.hash = "#/");
@@ -41,10 +43,10 @@ async function route() {
   nav();
   unsub?.(); unsub = null;
   const [, page, id] = (location.hash || "#/").split("/");
-  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "shopping", "settings", "ticket", "staff"];
+  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "pantry", "shopping", "settings", "ticket", "staff", "sous"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
-  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, shopping, settings, support, ticket: () => ticket(id), staff, reserve }[page] || home)();
+  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, pantry, shopping: pantry, settings, support, ticket: () => ticket(id), staff, reserve, sous }[page] || home)();
   window.scrollTo(0, 0);
 }
 
@@ -75,7 +77,7 @@ async function dashboard() {
     $("#list").innerHTML = !all.length
       ? `<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<br><a class="btn main" href="#/add">Add recipe</a></div>`
       : !f.length ? `<div class="empty glass"><h3>Nothing matches</h3>Try a different search or clear the Favorites filter.</div>`
-      : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img" style="${r.image ? `background-image:url('${esc(r.image)}')` : ""}">${r.image ? "" : "🍽️"}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
+      : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img" style="${r.image ? `background-image:url('${esc(r.image)}')` : ""}">${r.image ? "" : esc((r.title || "?").trim()[0] || "?")}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
   };
   $("#q").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
   $("#fav").onclick = e => { fav = !fav; e.target.setAttribute("aria-pressed", fav); draw(); };
@@ -85,15 +87,22 @@ async function dashboard() {
 async function detail(id) {
   const s = await getDoc(doc(db, "users", user.uid, "recipes", id));
   if (!s.exists()) { app.innerHTML = `<div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
-  const r = { id, ...s.data() };
+  const r = { id, ...s.data() }, base = parseInt(r.servings) || 0;
   app.innerHTML = `<div class="detail">
     ${r.image ? `<div class="cover" style="background-image:url('${esc(r.image)}')"></div>` : ""}
     <div class="hdr"><div><h2>${esc(r.title)}</h2><p class="meta">${esc([r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · "))}${r.source ? ` · <a href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">Original</a>` : ""}</p></div>
-      <div class="row"><button class="btn" id="fv">${r.favorite ? "★ Favorited" : "☆ Favorite"}</button><a class="btn" href="#/edit/${id}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
-    <div class="panel glass"><h3>Ingredients</h3><ul>${(r.ingredients || []).map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>
+      <div class="row"><button class="btn" id="fv">${r.favorite ? "★ Favorited" : "☆ Favorite"}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/${id}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
+    <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>${base ? `<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>` : ""}</div><ul id="il"></ul></div>
     <div class="panel glass"><h3>Steps</h3><ol>${(r.steps || []).map(i => `<li>${esc(i)}</li>`).join("")}</ol>${r.notes ? `<h3 style="margin-top:28px">Notes</h3><p class="meta notes">${esc(r.notes)}</p>` : ""}</div></div>`;
   $("#fv").onclick = async () => { await updateDoc(doc(db, "users", user.uid, "recipes", id), { favorite: !r.favorite }); recipes = null; detail(id); };
   $("#del").onclick = async () => { if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return; await deleteDoc(doc(db, "users", user.uid, "recipes", id)); recipes = null; toast("Recipe deleted"); location.hash = "#/dashboard"; };
+  let cur = lsGet("garde.serv", {})[id] || base;
+  const showIng = () => { const k = base ? cur / base : 1; $("#il").innerHTML = (r.ingredients || []).map(i => `<li>${esc(scaleLine(i, k))}</li>`).join(""); if (base) $("#sv").textContent = cur; };
+  const stepTo = d => { cur = Math.max(1, Math.min(99, cur + d)); const m = lsGet("garde.serv", {}); m[id] = cur; lsSet("garde.serv", m); showIng(); };
+  if (base) { $("#mn").onclick = () => stepTo(-1); $("#pl").onclick = () => stepTo(1); }
+  showIng();
+  const pk = () => lsGet("garde.pick", []), paint = () => { $("#pn").textContent = pk().includes(id) ? "✓ In Pantry" : "Add to Pantry"; };
+  paint(); $("#pn").onclick = () => { lsSet("garde.pick", pk().includes(id) ? pk().filter(x => x !== id) : [...pk(), id]); paint(); };
 }
 
 // ---- Import helpers ----
@@ -104,6 +113,7 @@ const PROXIES = [u => "https://corsproxy.io/?url=" + encodeURIComponent(u), u =>
 const grab = async (u, ms = 12000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { signal: c.signal }); if (!r.ok) throw 0; const x = await r.text(); if (x.length < 300) throw 0; return x; } finally { clearTimeout(t); } };
 
 // Turns loose text (page text or OCR) into title / ingredients / steps
+const JUNK = /^(print|pin|save|rate|share|jump to|did you make|leave a|subscribe|advertisement|skip to)\b/i;
 const QTY = /^(?:\d+(?:[.,/]\d+)?(?:\s+\d\/\d)?|[¼½¾⅓⅔⅛])\s*(?:-\s*\d+)?\s*(?:cups?|c|tbsps?|tsps?|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|l|liters?|cloves?|pinch|dash|cans?|sticks?|slices?|pieces?)?\b/i;
 function parseText(text) {
   const out = { title: "", ingredients: [], steps: [], time: "", servings: "" };
@@ -118,9 +128,9 @@ function parseText(text) {
     const sv = /(?:serves|servings?|yield|makes)\s*:?\s*(\d+)/i.exec(l); if (sv && !out.servings) out.servings = sv[1];
     const tm = /(?:total|ready in)(?:\s*time)?\s*:?\s*(\d+\s*(?:h|hr|hrs|hours?|min|minutes?)(?:\s*\d+\s*(?:min|minutes?))?)/i.exec(l); if (tm && !out.time) out.time = tm[1];
     const c = l.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^[*\-•·▢☐\s]+/, "").replace(/^\d+[.)]\s+/, "").replace(/\*+/g, "").trim();
-    if (!c) continue;
-    if (mode === "i") out.ingredients.push(c);
-    else if (mode === "s") out.steps.push(c);
+    if (!c || JUNK.test(c)) continue;
+    if (mode === "i") { if (c.length < 140) out.ingredients.push(c); }
+    else if (mode === "s") { out.steps.push(c); if (out.steps.length >= 30) mode = "x"; }
     else if (mode === "") {
       if (hasHead) { if (!out.title && c.length < 80) out.title = c; }
       else if (!out.title && c.length < 70 && !QTY.test(c)) out.title = c;
@@ -143,9 +153,27 @@ function fromHtml(h, url) {
       image: typeof img === "string" ? img : img?.url || og("image"), ingredients: [].concat(rec.recipeIngredient || []).map(txt), steps: flat(rec.recipeInstructions).map(txt),
       tags: [].concat(rec.recipeCategory || [], String(rec.keywords || "").split(",")).map(t => String(t).trim()).filter(Boolean).slice(0, 5) };
   }
-  const ing = [...dom.querySelectorAll('[itemprop="recipeIngredient"],[itemprop="ingredients"]')].map(e => txt(e.innerHTML));
-  if (ing.length > 1) return { title: txt(og("title") || dom.title), source: url, image: og("image"), ingredients: ing, steps: [...dom.querySelectorAll('[itemprop="recipeInstructions"] li,[itemprop="recipeInstructions"] p')].map(e => txt(e.innerHTML)) };
-  return null;
+  const title = txt(og("title") || dom.querySelector("h1")?.textContent || dom.title).split(/\s[|–-]\s/)[0];
+  const pickAll = sels => { for (const q of sels) { const x = [...dom.querySelectorAll(q)].map(e => txt(e.innerHTML).replace(/\s+/g, " ")).filter(l => l && l.length < 400); if (x.length > 1) return x; } return []; };
+  // Recipe-card plugins and microdata hold only the real recipe, so the backstory is never touched
+  let ing = pickAll(['[itemprop="recipeIngredient"]', '[itemprop="ingredients"]', ".wprm-recipe-ingredient", ".tasty-recipes-ingredients li", ".mv-create-ingredients li", ".recipe-ingredients li", '[class*="ingredient"] li']).filter(l => l.length < 160);
+  let steps = pickAll(['[itemprop="recipeInstructions"] li', '[itemprop="recipeInstructions"] p', ".wprm-recipe-instruction-text", ".tasty-recipes-instructions li", ".mv-create-instructions li", ".recipe-instructions li", '[class*="instruction"] li', '[class*="direction"] li']);
+  if (ing.length < 2 || !steps.length) { const h = byHeading(dom); if (ing.length < 2) ing = h.ing; if (!steps.length) steps = h.steps; }
+  return ing.length > 1 ? { title, source: url, image: og("image"), ingredients: ing, steps } : null;
+}
+
+// Last resort: find the "Ingredients" and "Instructions" headings and take only the list or steps right after them
+function byHeading(dom) {
+  const heads = [...dom.querySelectorAll("h1,h2,h3,h4,h5,h6,strong,b")], lists = [...dom.querySelectorAll("ul,ol")];
+  const grab = re => {
+    const h = heads.find(x => re.test(x.textContent.trim().replace(/[:\s]+$/, ""))); if (!h) return [];
+    const l = lists.find(x => (h.compareDocumentPosition(x) & 4) && !x.contains(h) && x.querySelectorAll(":scope > li").length > 1);
+    if (l) return [...l.querySelectorAll(":scope > li")].map(e => txt(e.innerHTML).replace(/\s+/g, " ")).filter(Boolean);
+    const out = []; let n = (h.closest("h1,h2,h3,h4,h5,h6,p,div") || h).nextElementSibling;
+    while (n && !/^H[1-6]$/.test(n.tagName) && out.length < 30) { if (n.tagName === "P" && n.textContent.trim().length > 15) out.push(txt(n.innerHTML)); n = n.nextElementSibling; }
+    return out;
+  };
+  return { ing: grab(/^ingredients?$/i).filter(l => l.length < 160), steps: grab(/^(instructions?|directions?|method|steps?|preparation)$/i) };
 }
 
 function fromText(md, url) {
@@ -263,29 +291,33 @@ async function collections() {
     : `<div class="empty glass"><h3>No collections yet</h3>Add tags like "dinner" or "baking" to your recipes and they'll group here.<br><a class="btn main" href="#/add">Add recipe</a></div>`;
 }
 
-async function shopping() {
-  const all = await load(), ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
-  let pick = ls("Garde.pick", []), done = ls("Garde.done", []);
+async function pantry() {
+  const all = await load();
+  let pick = lsGet("garde.pick", []).filter(id => all.some(r => r.id === id)), done = lsGet("garde.done", []), serv = lsGet("garde.serv", {});
   const draw = () => {
-    const items = [...new Set(all.filter(r => pick.includes(r.id)).flatMap(r => r.ingredients || []).map(i => i.trim()))];
-    app.innerHTML = `<h1 class="pg">Shopping list</h1><p class="lead">Pick the recipes you're cooking and get one combined checklist.</p>
-    ${all.length ? `<div class="detail"><div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label></li>`).join("")}</ul></div>
-    <div class="panel glass"><h3>To buy</h3>${items.length ? `<ul class="tick">${items.map((i, n) => `<li><label><input type="checkbox" data-i="${n}" ${done.includes(i) ? "checked" : ""}><span>${esc(i)}</span></label></li>`).join("")}</ul>` : `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
-    : `<div class="empty glass"><h3>No recipes to shop for</h3>Add a recipe first.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
-    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); try { localStorage.setItem("Garde.pick", JSON.stringify(pick)); } catch {} draw(); });
-    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = items[c.dataset.i]; done = c.checked ? [...done, i] : done.filter(x => x !== i); try { localStorage.setItem("Garde.done", JSON.stringify(done)); } catch {} draw(); });
+    const groups = buildList(all.filter(r => pick.includes(r.id)), serv);
+    app.innerHTML = `<h1 class="pg">Pantry</h1><p class="lead">Your shopping list. Choose recipes, set how many people you're cooking for, and every ingredient is combined, scaled and sorted by aisle.</p>
+    ${all.length ? `<div class="detail"><div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.map(r => { const base = parseInt(r.servings) || 0, cur = serv[r.id] || base;
+      return `<li class="prow"><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label>${base ? `<span class="step" data-s="${r.id}"><button aria-label="Fewer servings" data-d="-1">−</button><b>${cur}</b><button aria-label="More servings" data-d="1">+</button></span>` : ""}</li>`; }).join("")}</ul></div>
+    <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>To buy</h3>${done.length ? `<button class="btn" id="clr">Clear checked</button>` : ""}</div>
+    ${ORDER.filter(a => groups[a]).map(a => `<div class="aisle">${a}</div><ul class="tick">${groups[a].map(e => { const id = a + "|" + e.key; return `<li><label><input type="checkbox" data-i="${esc(id)}" ${done.includes(id) ? "checked" : ""}><span>${esc(itemText(e))}</span></label></li>`; }).join("")}</ul>`).join("") || `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
+    : `<div class="empty glass"><h3>Your Pantry is empty</h3>Add a recipe and it will show up here.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
+    app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); lsSet("garde.pick", pick); draw(); });
+    app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = c.dataset.i; done = c.checked ? [...done, i] : done.filter(x => x !== i); lsSet("garde.done", done); draw(); });
+    app.querySelectorAll("[data-s] button").forEach(b => b.onclick = () => { const id = b.parentElement.dataset.s, r = all.find(x => x.id === id), base = parseInt(r.servings) || 1; serv[id] = Math.max(1, Math.min(99, (serv[id] || base) + +b.dataset.d)); lsSet("garde.serv", serv); draw(); });
+    if ($("#clr")) $("#clr").onclick = () => { done = []; lsSet("garde.done", done); draw(); };
   };
   draw();
 }
 
 function settings() {
   app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}</p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
-  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">Garde RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Garde Reserve"}</a></div></div>
+  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">GARDE RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Garde Reserve"}</a></div></div>
   <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
   $("#exp").onclick = async () => {
     const all = (await load()).map(({ createdAt, ...r }) => r);
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "Garde-recipes.json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "garde-recipes.json" });
     a.click(); toast("Export downloaded");
   };
 }
@@ -384,13 +416,51 @@ function staff() {
 }
 
 function reserve() {
-  const perks = [["Unlimited recipes", `Free accounts hold ${FREE_LIMIT} recipes. Reserve has no limit.`], ["Priority support", "Your tickets are pinned to the top of our queue."], ["Early access", "Try new features before everyone else."]];
-  app.innerHTML = `<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#0a0a0a">INVITE ONLY</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p><div class="row" id="cta"></div></div>
+  const perks = [["Unlimited recipes", `Free accounts hold ${FREE_LIMIT} recipes. Reserve has no limit.`], ["Sous meal planner", "Search the recipe library for your week. Every pick is saved to your recipes and its ingredients land in your Pantry."], ["Priority support", "Your tickets are pinned to the top of our queue."]];
+  app.innerHTML = `<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#0a0a0a">$9.99 / MONTH</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p><div class="row" id="cta"></div></div>
     <ul>${perks.map(([h]) => `<li>${h}</li>`).join("")}<li>Reserve badge on your account</li></ul></section>
     <div class="grid3">${perks.map(([h, p]) => `<div class="glass"><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
-    <p class="meta" style="text-align:center;margin-top:36px">Reserve is invite-only for now. Request access and our team will follow up in your ticket.</p>`;
+    <p class="meta" style="text-align:center;margin-top:36px">Reserve is rolling out now. Request access and our team will set you up in your ticket.</p>`;
   const cta = $("#cta");
   if (!user) cta.innerHTML = `<a class="btn main big" href="#/login">Sign in to request access</a>`;
-  else if (isReserve) cta.innerHTML = `<span class="badge" style="background:#fff;color:#0a0a0a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/support">Priority support</a>`;
+  else if (isReserve) cta.innerHTML = `<span class="badge" style="background:#fff;color:#0a0a0a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/sous">Open Sous</a><a class="btn" href="#/support">Priority support</a>`;
   else { cta.innerHTML = `<button class="btn main big" id="req">Request access</button>`; $("#req").onclick = async e => { e.target.disabled = true; try { location.hash = "#/ticket/" + await createTicket("Garde Reserve access request", "Garde Reserve", "I'd like to request access to Garde Reserve."); } catch { e.target.disabled = false; toast("Couldn't send your request."); } }; }
+}
+
+// ---- Sous (Reserve meal planner) ----
+const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+async function sous() {
+  if (!isReserve) { app.innerHTML = `<div class="center glass"><span class="badge">GARDE RESERVE</span><h2 style="margin-top:18px">Meet Sous</h2><p>Your meal planner. Choose recipes from the library and Garde saves them to your recipes and puts every ingredient on your shopping list.</p><a class="btn main" href="#/reserve">See Garde Reserve</a></div>`; return; }
+  app.innerHTML = `<h1 class="pg">Sous</h1><p class="lead">Choose what you're cooking. Each pick is saved to your recipes, and its ingredients go straight into your Pantry.</p>
+    <div class="bar"><input id="sq" type="search" placeholder="Search the library by recipe, ingredient or tag" aria-label="Search the recipe library"><span class="meta" id="cnt"></span><a class="btn" href="#/pantry">Open Pantry</a></div><div class="bar" id="chips" style="margin-top:0"></div><div class="grid" id="lib"></div>`;
+  let all; try { all = await load(); } catch { app.innerHTML = `<div class="empty glass"><h3>Couldn't load your recipes</h3>Check your connection and refresh.</div>`; return; }
+  let pick = lsGet("garde.pick", []), tag = "All", q = "";
+  const mine = lib => all.find(r => r.sousId === lib.id);
+  const inPlan = lib => { const r = mine(lib); return !!r && pick.includes(r.id); };
+  const tags = ["All", ...new Set(LIBRARY.flatMap(r => r.tags))];
+  const toggle = async lib => {
+    let r = mine(lib);
+    if (r && pick.includes(r.id)) pick = pick.filter(x => x !== r.id);
+    else {
+      if (!r) {
+        const d = { title: lib.title, source: "", time: lib.time, servings: String(lib.servings), image: "", ingredients: lib.ingredients, steps: lib.steps, tags: [...lib.tags, "Sous"], notes: "", favorite: false, sousId: lib.id, createdAt: serverTimestamp() };
+        try { const ref = await addDoc(col(), d); r = { id: ref.id, ...d }; all = [r, ...all]; recipes = null; } catch { return toast("Couldn't add that recipe. Try again."); }
+      }
+      pick = [...pick, r.id]; toast("Added to your recipes and Pantry");
+    }
+    lsSet("garde.pick", pick); draw();
+  };
+  const draw = () => {
+    $("#cnt").textContent = `${LIBRARY.filter(inPlan).length} in your plan`;
+    $("#chips").innerHTML = tags.map(t => `<button class="chip" data-t="${esc(t)}" aria-pressed="${t === tag}">${esc(t)}</button>`).join("");
+    $("#lib").innerHTML = LIBRARY.filter(r => (tag === "All" || r.tags.includes(tag)) && `${r.title} ${r.tags.join(" ")} ${r.ingredients.join(" ")}`.toLowerCase().includes(q)).map(r => `<div class="glass panel sc"><small class="meta">${esc(r.time)} · ${r.servings} servings</small><h3>${esc(r.title)}</h3>
+      <details><summary class="meta">${r.ingredients.length} ingredients</summary><ul>${r.ingredients.map(i => `<li>${esc(i)}</li>`).join("")}</ul></details>
+      <button class="btn ${inPlan(r) ? "" : "main"}" data-id="${r.id}">${inPlan(r) ? "✓ In your plan · Remove" : "Add to plan"}</button></div>`).join("");
+    app.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { tag = b.dataset.t; draw(); });
+    app.querySelectorAll("[data-id]").forEach(b => b.onclick = () => { b.disabled = true; toggle(LIBRARY.find(x => x.id === b.dataset.id)); });
+  };
+  draw();
+  $("#sq").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
 }

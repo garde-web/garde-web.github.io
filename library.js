@@ -1,0 +1,27 @@
+// Sous recipe library. Add more entries here (or move them to Firestore later).
+export const LIBRARY = [
+  { id: "garlic-butter-pasta", title: "Garlic Butter Pasta", time: "20 min", servings: 4, tags: ["Dinner", "Vegetarian", "Quick"],
+    ingredients: ["12 oz spaghetti", "4 tbsp butter", "5 cloves garlic, minced", "1/2 cup grated parmesan", "1/4 cup chopped parsley", "Salt and black pepper"],
+    steps: ["Boil the spaghetti in well-salted water until al dente. Save a cup of pasta water, then drain.", "Melt the butter in a large pan over medium heat and cook the garlic for 1 minute.", "Toss in the pasta with a splash of pasta water until glossy.", "Stir in the parmesan and parsley, season, and serve right away."] },
+  { id: "sheet-pan-lemon-chicken", title: "Sheet-Pan Lemon Chicken", time: "45 min", servings: 4, tags: ["Dinner", "Weeknight"],
+    ingredients: ["4 bone-in chicken thighs", "1 lb baby potatoes, halved", "2 lemons", "4 cloves garlic", "3 tbsp olive oil", "1 tsp dried oregano", "Salt and black pepper"],
+    steps: ["Heat the oven to 425°F (220°C).", "Toss the potatoes with oil, oregano, salt and pepper on a sheet pan. Nestle in the chicken and tuck in the garlic and lemon halves.", "Roast for 35 minutes until the chicken is cooked through and the skin is crisp.", "Squeeze the roasted lemon over everything and serve."] },
+  { id: "veggie-fried-rice", title: "Veggie Fried Rice", time: "20 min", servings: 3, tags: ["Dinner", "Vegetarian", "Quick"],
+    ingredients: ["3 cups cooked rice, chilled", "3 eggs", "1 cup frozen peas and carrots", "3 green onions, sliced", "3 tbsp soy sauce", "1 tbsp sesame oil", "2 tbsp neutral oil"],
+    steps: ["Heat the neutral oil in a wide pan over high heat. Scramble the eggs and set them aside.", "Add the peas, carrots and rice and fry for 4 minutes, pressing the rice against the pan.", "Add the soy sauce, sesame oil and eggs and toss to combine.", "Finish with the green onions."] },
+  { id: "black-bean-tacos", title: "Crispy Black Bean Tacos", time: "25 min", servings: 4, tags: ["Dinner", "Vegetarian"],
+    ingredients: ["2 cans black beans, drained", "8 small corn tortillas", "1 tsp cumin", "1 tsp smoked paprika", "1 avocado, sliced", "1 cup shredded cabbage", "1 lime", "1/2 cup crumbled feta"],
+    steps: ["Simmer the beans with the cumin, paprika and a pinch of salt for 8 minutes, lightly mashing some of them.", "Warm the tortillas in a dry pan until blistered.", "Fill with beans, cabbage, avocado and feta, then squeeze lime over the top."] },
+  { id: "tomato-basil-soup", title: "Roasted Tomato Basil Soup", time: "50 min", servings: 4, tags: ["Soup", "Vegetarian"],
+    ingredients: ["2 lb ripe tomatoes, halved", "1 yellow onion, quartered", "4 cloves garlic", "3 tbsp olive oil", "2 cups vegetable stock", "1 cup fresh basil leaves", "1/4 cup cream"],
+    steps: ["Roast the tomatoes, onion and garlic with the oil at 425°F (220°C) for 30 minutes.", "Blend the roasted vegetables with the stock and basil until smooth.", "Warm the soup in a pot, stir in the cream, and season to taste."] },
+  { id: "chickpea-coconut-curry", title: "Chickpea Coconut Curry", time: "30 min", servings: 4, tags: ["Dinner", "Vegan"],
+    ingredients: ["2 cans chickpeas, drained", "1 can coconut milk", "1 can diced tomatoes", "1 onion, diced", "3 cloves garlic", "2 tbsp curry powder", "1 tbsp grated ginger", "4 handfuls spinach", "Cooked rice, to serve"],
+    steps: ["Soften the onion in oil for 5 minutes, then add the garlic, ginger and curry powder for 1 minute.", "Add the tomatoes, coconut milk and chickpeas and simmer for 15 minutes.", "Stir in the spinach until wilted and serve over rice."] },
+  { id: "banana-oat-pancakes", title: "Banana Oat Pancakes", time: "20 min", servings: 3, tags: ["Breakfast", "Vegetarian"],
+    ingredients: ["2 ripe bananas", "1 cup rolled oats", "2 eggs", "1/2 cup milk", "1 tsp baking powder", "1 tsp cinnamon", "Butter, for the pan"],
+    steps: ["Blend everything except the butter until smooth and let the batter rest for 5 minutes.", "Cook small pancakes in a buttered pan over medium heat, about 2 minutes per side.", "Serve warm with fruit or syrup."] },
+  { id: "greek-salad-bowls", title: "Greek Salad Bowls", time: "15 min", servings: 2, tags: ["Lunch", "Vegetarian", "Quick"],
+    ingredients: ["1 cucumber, chopped", "2 cups cherry tomatoes, halved", "1/2 red onion, sliced", "1/2 cup kalamata olives", "4 oz feta", "3 tbsp olive oil", "1 tbsp red wine vinegar", "1 tsp dried oregano"],
+    steps: ["Whisk the oil, vinegar and oregano with a pinch of salt.", "Toss the cucumber, tomatoes, onion and olives with the dressing.", "Divide into bowls and top with slabs of feta."] }
+];
