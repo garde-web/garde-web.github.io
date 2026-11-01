@@ -1,9 +1,10 @@
 import * as pg from "./pages.js";
 import { LIBRARY } from "./library.js";
 import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
-import { auth, db, provider, IMPORT_PROXY } from "./firebase-config.js";
+import * as fb from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const { auth, db, provider } = fb, IMPORT_PROXY = fb.IMPORT_PROXY || ""; // IMPORT_PROXY is optional in firebase-config.js
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

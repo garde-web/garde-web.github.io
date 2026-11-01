@@ -16,6 +16,9 @@
 <footer id="foot"></footer>
 <div class="toast" id="toast" role="status"></div>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-<script type="module" src="app.js"></script>
+<script>
+addEventListener("error", e => { const a = document.getElementById("app"); if (a && !a.children.length) a.innerHTML = '<div style="max-width:560px;margin:10vh auto;text-align:center;line-height:1.6"><h2>Garde couldn\'t start</h2><p style="color:#6b645c">' + String(e.message || "A file failed to load").replace(/</g, "&lt;") + '</p><p style="color:#6b645c">Press F12 and open the Console for details.</p></div>'; });
+</script>
+<script type="module" src="app.js" onerror="document.getElementById('app').textContent='A Garde file failed to load. Check that every file was uploaded to the same folder.'"></script>
 </body>
 </html>
