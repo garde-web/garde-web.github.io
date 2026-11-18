@@ -1,0 +1,47 @@
+<section class="hero">
+  <div class="copy"><h1>Every recipe you've loved, in one place.</h1>
+    <p class="lead">Save a recipe from any website, snap a photo of a handwritten card, or type it in. Garde keeps them all searchable and ready the moment you start cooking.</p>
+    <div class="row"><a class="btn main big" href="{{go}}">{{#if user}}Add a recipe{{else}}Start your collection{{/if}}</a><a class="btn big" href="#/features">See what it does</a></div></div>
+  <div class="scene">
+    <div class="win glass"><div class="dots"><i></i><i></i><i></i></div><h3>Weeknight green curry</h3><p class="meta">25 min · 4 servings</p>
+    <ul><li>1 can coconut milk</li><li>2 tbsp green curry paste</li><li>1 cup snap peas</li></ul><span class="pill">★ Favorite</span></div>
+    <div class="win w2 glass"><b>Pantry</b><div class="aisle">Produce</div><p>3 lemons · 5 cloves garlic</p><div class="aisle">Dairy &amp; eggs</div><p>4 tbsp butter</p></div></div>
+</section>
+
+<div class="strip glass"><span>Blogs</span><span>Magazines</span><span>Cookbooks</span><span>Grandma's cards</span><span>Screenshots</span><span>Your own ideas</span></div>
+
+<section class="feat"><div class="copy"><h2>Paste a link, get a recipe.</h2><p>Found something delicious online? Drop the link into Garde and it pulls in the title, ingredients, steps and photo. No more bookmarks you can never find again.</p></div>
+  <div class="vis"><div class="mock glass"><div class="url">https://your-favorite-recipe-site.com/pasta</div><button class="btn main" tabindex="-1">Import</button><p class="meta">Creamy lemon pasta<br>8 ingredients · 6 steps · 25 min</p></div></div></section>
+
+<section class="feat flip"><div class="copy"><h2>Scan the cards in your drawer.</h2><p>Take a photo of a cookbook page or a faded family recipe card. Garde reads the text so you can tidy it up and keep it forever.</p></div>
+  <div class="vis"><div class="mock paper"><b>Nonna's lemon bars</b><br>2 cups flour · 1 cup butter<br>4 eggs · 3 lemons<br>Bake 350° for 25 min</div></div></section>
+
+<section class="feat"><div class="copy"><h2>Find dinner in seconds.</h2><p>Search by name, ingredient or tag, star your favorites, and group recipes into collections like weeknight, baking or holiday.</p></div>
+  <div class="vis"><div class="mock glass"><div class="url">chicken</div><div class="row"><span class="pill">Weeknight</span><span class="pill">Baking</span><span class="pill">Holiday</span></div><p class="meta">3 recipes match</p></div></div></section>
+
+<section class="feat flip"><div class="copy"><h2>Cooking for more? Scale any recipe.</h2><p>Change the servings and every ingredient adjusts, in the recipe and in your Pantry. A cookie recipe for 2 becomes a recipe for 6 with one tap.</p></div>
+  <div class="vis"><div class="mock glass"><div class="row" style="justify-content:space-between"><b>Brown butter cookies</b><span class="step"><button tabindex="-1">−</button><b>6</b><button tabindex="-1">+</button></span></div><p class="meta">1½ cups flour<br>¾ cup butter<br>3 eggs</p></div></div></section>
+
+<section class="feat"><div class="copy"><h2>A shopping list that follows the store.</h2><p>Pick the recipes you're cooking this week and Garde combines everything into one Pantry list, sorted by produce, dairy, pantry staples and more.</p></div>
+  <div class="vis"><div class="mock glass"><div class="aisle">Produce</div><label class="chk"><input type="checkbox" checked> 3 lemons</label><label class="chk"><input type="checkbox"> 5 cloves garlic</label><div class="aisle">Dairy &amp; eggs</div><label class="chk"><input type="checkbox"> 4 tbsp butter</label></div></div></section>
+
+<section class="steps"><h2>Up and running in three steps</h2>
+  <div class="grid3"><div class="glass"><b class="n">1</b><h3>Sign in</h3><p>Continue with Google. No new password to remember.</p></div>
+  <div class="glass"><b class="n">2</b><h3>Add recipes</h3><p>Import a link, scan a card, or type one in.</p></div>
+  <div class="glass"><b class="n">3</b><h3>Cook</h3><p>Open any recipe, check the ingredients, and follow the steps.</p></div></div></section>
+
+<section class="steps"><h2>Made for real kitchens</h2>
+  <div class="grid3">
+    <div class="glass"><i class="mark"></i><h3>Private by default</h3><p>Only you can see your recipes.</p></div>
+    <div class="glass"><i class="mark"></i><h3>Works on your phone</h3><p>Open a recipe on the counter or at the store.</p></div>
+    <div class="glass"><i class="mark"></i><h3>Favorites</h3><p>Keep the keepers one tap away.</p></div>
+    <div class="glass"><i class="mark"></i><h3>Tags and collections</h3><p>Sort recipes your way.</p></div>
+    <div class="glass"><i class="mark"></i><h3>Notes</h3><p>Remember what you'd change next time.</p></div>
+    <div class="glass"><i class="mark"></i><h3>Export anytime</h3><p>Your recipes are yours to take.</p></div></div></section>
+
+<section class="band"><div><h2>Garde Reserve</h2><p class="lead" style="color:#bdbdbd">For people who cook a lot. Unlimited recipes, the Sous meal planner and priority support, for $9.99 a month.</p><div class="row"><a class="btn main big" href="#/reserve">Learn more</a></div></div>
+  <ul><li>Unlimited saved recipes</li><li>Sous meal planner</li><li>Priority support, answered first</li><li>Reserve badge on your account</li></ul></section>
+
+<section class="steps"><h2>Questions, answered</h2>{{> faq}}</section>
+
+<section class="cta glass"><h2>Your next favorite recipe is waiting.</h2><p>Start saving the ones you love. It takes under a minute.</p><a class="btn main big" href="{{go}}">{{#if user}}Add a recipe{{else}}Get started free{{/if}}</a></section>

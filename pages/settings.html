@@ -1,0 +1,4 @@
+<h1 class="pg">Settings</h1>
+<div class="panel glass"><h3>Account</h3><p class="meta">{{name}}<br>{{email}}<br>Account ID: <code>{{uid}}</code></p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
+<div class="panel glass"><h3>Plan</h3><p class="meta">{{#if reserve}}<span class="badge">GARDE RESERVE</span>{{else}}Free plan{{/if}}{{#if staff}} · <span class="badge">STAFF</span>{{/if}}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">{{#if reserve}}Manage{{else}}See Garde Reserve{{/if}}</a></div></div>
+<div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>

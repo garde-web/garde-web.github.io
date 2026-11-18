@@ -1,18 +1,18 @@
-import * as pg from "./pages.js";
-import { LIBRARY } from "./library.js";
+// Garde: boot, sign-in, routing and the recipe screens. Page markup lives in pages/*.html; styling in css/style.css.
+import * as fb from "../firebase-config.js";
+import { view, fill, esc, faqItems } from "./tpl.js";
 import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
 import { extractRecipe, bookmarklet } from "./extract.js";
 import { mountSupport } from "./support.js";
 import { mountSous, weekEntries } from "./sous.js";
-import * as fb from "./firebase-config.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const { auth, db, provider } = fb, IMPORT_PROXY = fb.IMPORT_PROXY || ""; // IMPORT_PROXY is optional in firebase-config.js
 
 const $ = (s, r = document) => r.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
 const app = $("#app");
+const show = (spec, data) => fill(app, spec, data);
 let user = null, ready = false, recipes = null, isStaff = false, isAdmin = false, isReserve = false, unsub = null;
 const badges = { support: 0, staff: 0 };
 const FREE_LIMIT = 50;
@@ -45,17 +45,17 @@ async function login() {
   catch (e) { toast("Sign-in didn't finish. Try again."); }
 }
 
+// ---- Navigation, footer and banner (markup in pages/layout.html) ----
 function nav() {
-  const h = location.hash || "#/";
-  const l = (href, label, n = 0) => `<a class="l" href="${href}" ${h === href || h.startsWith(href + "/") ? "aria-current=page" : ""}>${label}${n ? `<span class="navbadge">${n}</span>` : ""}</a>`;
-  const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
-  $("#nav").innerHTML = `<a class="logo" href="#/">Garde</a>` + (user
-    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/sous", "Sous")}${l("#/pantry", "Pantry")}${l("#/add", "Add")}${l("#/support", "Support", badges.support)}${l("#/reserve", "Reserve")}${lh("#/about", "About")}${isStaff ? l("#/staff", "Staff", badges.staff) : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
-    : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/reserve", "Reserve")}${lh("#/support", "Support")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
-  $("#foot").innerHTML = pg.footer();
-  const o = $("#out"); if (o) o.onclick = () => signOut(auth).then(() => location.hash = "#/");
+  const page = (location.hash || "#/").split("/")[1] || "home";
+  fill($("#nav"), "layout#nav", { authed: !!user, staff: isStaff, supportBadge: badges.support, staffBadge: badges.staff, photo: user?.photoURL || "", on: { [page === "ticket" ? "support" : page]: true } });
+  fill($("#foot"), "layout#footer", {});
 }
+const loadBanner = async () => {
+  try { const x = await getDoc(doc(db, "config", "banner")), d = x.exists() ? x.data() : null; fill($("#banner"), "layout#banner", { text: d && d.on ? d.text : "" }); } catch {}
+};
 
+// ---- Routing ----
 async function route() {
   if (!ready) return;
   nav();
@@ -65,17 +65,18 @@ async function route() {
   const guarded = ["dashboard", "add", "recipe", "edit", "collections", "pantry", "shopping", "settings", "ticket", "staff", "sous"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
-  ({ "": home, login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id), features: stat("features"), about: stat("about"), collections, pantry, shopping: pantry, settings, support: () => P.support(), ticket: () => P.ticket(id), staff: () => P.staff(id), reserve: () => P.reserve(), sous: () => S.sous() }[page] || home)();
+  const pages = {
+    "": () => show("home", { user: !!user, go: user ? "#/add" : "#/login" }),
+    login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id),
+    features: () => show("features"), about: () => show("about"),
+    collections, pantry, shopping: pantry, settings,
+    support: () => P.support(), ticket: () => P.ticket(id), staff: () => P.staff(id), reserve: () => P.reserve(), sous: () => S.sous()
+  };
+  await (pages[page] || pages[""])();
   window.scrollTo(0, 0);
 }
 
-const home = () => { app.innerHTML = pg.home(user); };
-const stat = f => () => { app.innerHTML = pg[f](); };
-
-function loginView() {
-  app.innerHTML = `<div class="center glass"><h2>Welcome to Garde</h2><p>Sign in or create your account with Google. Your recipes stay private to you.</p><button class="btn main" id="g">Continue with Google</button></div>`;
-  $("#g").onclick = login;
-}
+async function loginView() { if (await show("login")) $("#g").onclick = login; }
 
 async function load() {
   if (recipes) return recipes;
@@ -83,40 +84,35 @@ async function load() {
   return recipes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// ---- My recipes ----
 async function dashboard() {
-  app.innerHTML = `<h2>My recipes</h2><p class="status">Loading…</p>`;
+  await show("dashboard#loading");
   let all;
-  try { all = await load(); } catch (e) { app.innerHTML = `<h2>My recipes</h2><div class="empty glass"><h3>Couldn't load your recipes</h3>Check your Firebase config and Firestore rules, then refresh.</div>`; return; }
+  try { all = await load(); } catch (e) { await show("dashboard#error"); return; }
   let q = "", fav = false;
-  app.innerHTML = `<h2>My recipes</h2>
-    <div class="bar"><input id="q" type="search" placeholder="Search by name, ingredient or tag" aria-label="Search recipes"><button class="chip" id="fav" aria-pressed="false">Favorites</button><a class="btn main" href="#/add">Add recipe</a></div>
-    <div id="list"></div>`;
+  if (!(await show("dashboard"))) return;
   const draw = () => {
     const f = all.filter(r => (!fav || r.favorite) && (`${r.title} ${(r.tags || []).join(" ")} ${(r.ingredients || []).join(" ")}`).toLowerCase().includes(q));
-    $("#list").innerHTML = !all.length
-      ? `<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<br><a class="btn main" href="#/add">Add recipe</a></div>`
-      : !f.length ? `<div class="empty glass"><h3>Nothing matches</h3>Try a different search or clear the Favorites filter.</div>`
-      : `<div class="grid">${f.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="img"><span>${esc((r.title || "?").trim()[0] || "?")}</span>${r.image ? `<img src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : ""}</div><div class="body"><h3>${r.favorite ? "★ " : ""}${esc(r.title)}</h3><small>${esc([r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet")}</small></div></a>`).join("")}</div>`;
+    fill($("#list"), "dashboard#list", { none: !all.length, nomatch: all.length > 0 && !f.length,
+      cards: f.map(r => ({ id: r.id, letter: (r.title || "?").trim()[0] || "?", image: r.image, favorite: r.favorite, title: r.title, meta: [r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet" })) });
   };
   $("#q").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
   $("#fav").onclick = e => { fav = !fav; e.target.setAttribute("aria-pressed", fav); draw(); };
   draw();
 }
 
+// ---- One recipe ----
 async function detail(id) {
   const s = await getDoc(doc(db, "users", user.uid, "recipes", id));
-  if (!s.exists()) { app.innerHTML = `<div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div>`; return; }
+  if (!s.exists()) { await show("recipe#notfound"); return; }
   const r = { id, ...s.data() }, base = parseInt(r.servings) || 0;
-  app.innerHTML = `<div class="detail">
-    ${r.image ? `<img class="cover" src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
-    <div class="hdr"><div><h2>${esc(r.title)}</h2><p class="meta">${esc([r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · "))}${r.source ? ` · <a href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">Original</a>` : ""}</p></div>
-      <div class="row"><button class="btn" id="fv">${r.favorite ? "★ Favorited" : "☆ Favorite"}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/${id}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
-    <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>${base ? `<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>` : ""}</div><ul id="il"></ul></div>
-    <div class="panel glass"><h3>Steps</h3><ol>${(r.steps || []).map(i => `<li>${esc(i)}</li>`).join("")}</ol>${r.notes ? `<h3 style="margin-top:28px">Notes</h3><p class="meta notes">${esc(r.notes)}</p>` : ""}</div></div>`;
+  const ok = await show("recipe", { id, title: r.title, image: r.image, favorite: r.favorite, source: r.source, base, steps: r.steps || [], notes: r.notes,
+    meta: [r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · ") });
+  if (!ok) return;
   $("#fv").onclick = async () => { await updateDoc(doc(db, "users", user.uid, "recipes", id), { favorite: !r.favorite }); recipes = null; detail(id); };
   $("#del").onclick = async () => { if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return; await deleteDoc(doc(db, "users", user.uid, "recipes", id)); recipes = null; toast("Recipe deleted"); location.hash = "#/dashboard"; };
   let cur = lsGet("garde.serv", {})[id] || base;
-  const showIng = () => { const k = base ? cur / base : 1; $("#il").innerHTML = (r.ingredients || []).map(i => `<li>${esc(scaleLine(i, k))}</li>`).join(""); if (base) $("#sv").textContent = cur; };
+  const showIng = () => { const k = base ? cur / base : 1; fill($("#il"), "recipe#ingredients", { items: (r.ingredients || []).map(i => scaleLine(i, k)) }); if (base) $("#sv").textContent = cur; };
   const stepTo = d => { cur = Math.max(1, Math.min(99, cur + d)); const m = lsGet("garde.serv", {}); m[id] = cur; lsSet("garde.serv", m); showIng(); };
   if (base) { $("#mn").onclick = () => stepTo(-1); $("#pl").onclick = () => stepTo(1); }
   showIng();
@@ -213,24 +209,9 @@ function form(id) {
   const fill = (a, b) => ({ ...a, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v && (!Array.isArray(v) || v.length))) });
   const seed = id ? null : takeSeed();
   if (!id) warm().catch(() => {});
-  const render = (r, msg = "") => {
-    app.innerHTML = `<h1 class="pg">${id ? "Edit recipe" : "Add a recipe"}</h1>
-    ${id ? "" : `<div class="two quick">
-      <div class="panel glass"><h3>Paste a link</h3><p class="meta">Any recipe website. It imports as soon as you paste.</p>
-        <div class="row nowrap"><input id="url" type="url" placeholder="https://…" aria-label="Recipe link"><button class="btn main" id="imp">Import</button></div></div>
-      <div class="panel glass drop" id="drop"><h3>Upload a photo</h3><p class="meta">Recipe card, cookbook page or screenshot. Drop it here, choose a file, or paste an image.</p>
-        <label class="btn main" for="scan">Choose photo</label><input class="sr" id="scan" type="file" accept="image/*"></div></div>
-      <details class="panel glass paste" id="pastebox"><summary>Paste recipe text instead</summary><p class="meta">Copy everything from a recipe page (or just the ingredients and steps) and paste it here. Garde picks out the recipe and skips the story.</p><textarea id="ptxt" placeholder="Paste here…"></textarea><div class="row" style="margin-top:16px"><button class="btn main" id="pgo">Extract recipe</button></div></details>
-      <details class="panel glass paste" id="bm"><summary>Save from any website with one click</summary><p class="meta">Drag this button to your bookmarks bar. On any recipe page, click it and the recipe opens here, ready to save. It works on sites that block automatic import.</p><a class="btn main" id="bml" href="#" style="margin-top:6px">Save to Garde</a></details>
-      <div class="prog" id="prog" hidden><span class="bar"><i></i></span><small id="pt"></small></div>`}
-    <p class="status" id="st" role="status">${esc(msg)}</p>
-    <div class="panel glass"><label for="title">Title</label><input id="title" value="${esc(r.title)}" required>
-      <div class="two"><div><label for="time">Total time</label><input id="time" value="${esc(r.time)}" placeholder="45 min"></div><div><label for="serv">Servings</label><input id="serv" value="${esc(r.servings)}" inputmode="numeric"></div></div>
-      <label for="ing">Ingredients (one per line)</label><textarea id="ing">${esc(r.ingredients.join("\n"))}</textarea>
-      <label for="stp">Steps (one per line)</label><textarea id="stp">${esc(r.steps.join("\n"))}</textarea>
-      <div class="two"><div><label for="tags">Tags (comma separated)</label><input id="tags" value="${esc(r.tags.join(", "))}" placeholder="dinner, vegetarian"></div><div><label for="img">Photo link</label><input id="img" value="${esc(r.image)}"></div></div>
-      <label for="notes">Notes</label><textarea id="notes" style="min-height:80px">${esc(r.notes)}</textarea>
-      <div class="row" style="margin-top:28px"><button class="btn main" id="save">Save recipe</button><a class="btn" href="#/dashboard">Cancel</a></div></div>`;
+  const render = async (r, msg = "") => {
+    const ok = await show("add", { editing: !!id, msg, title: r.title, time: r.time, servings: r.servings, ingredients: r.ingredients.join("\n"), steps: r.steps.join("\n"), tags: r.tags.join(", "), image: r.image, notes: r.notes });
+    if (!ok) return;
     const st = m => { const e = $("#st"); if (e) e.textContent = m; };
     const busy = (on, label, p) => { const b = $("#prog"); if (!b) return; b.hidden = !on; $("#pt").textContent = label || ""; b.classList.toggle("ind", p == null); b.querySelector("i").style.width = p == null ? "40%" : Math.round(p * 100) + "%"; };
     const cur = () => ({ title: $("#title").value, source: r.source, time: $("#time").value, servings: $("#serv").value, image: $("#img").value, ingredients: lines($("#ing").value), steps: lines($("#stp").value), tags: $("#tags").value.split(",").map(t => t.trim()).filter(Boolean), notes: $("#notes").value });
@@ -281,32 +262,27 @@ function form(id) {
   getDoc(doc(db, "users", user.uid, "recipes", id)).then(s => render({ ...base, ...s.data() }));
 }
 
-// ---- Collections, shopping list, settings ----
+// ---- Collections ----
 async function collections() {
-  app.innerHTML = `<h1 class="pg">Collections</h1><p class="lead">Your recipes, grouped by tag.</p><div id="c"></div>`;
   const all = await load(), g = {};
   all.forEach(r => (r.tags?.length ? r.tags : ["Untagged"]).forEach(t => (g[t.toLowerCase()] ||= { n: t, r: [] }).r.push(r)));
-  $("#c").innerHTML = all.length ? Object.values(g).sort((a, b) => b.r.length - a.r.length).map(x => `<div class="sect"><h3>${esc(x.n)} <small class="meta">${x.r.length}</small></h3><div class="grid">${x.r.map(r => `<a class="rc glass" href="#/recipe/${r.id}"><div class="body"><h3>${esc(r.title)}</h3><small>${esc(r.time || "")}</small></div></a>`).join("")}</div></div>`).join("")
-    : `<div class="empty glass"><h3>No collections yet</h3>Add tags like "dinner" or "baking" to your recipes and they'll group here.<br><a class="btn main" href="#/add">Add recipe</a></div>`;
+  await show("collections", { none: !all.length, groups: Object.values(g).sort((a, b) => b.r.length - a.r.length).map(x => ({ name: x.n, count: x.r.length, recipes: x.r.map(r => ({ id: r.id, title: r.title, time: r.time || "" })) })) });
 }
 
+// ---- Pantry: combined, scaled shopping list ----
 async function pantry() {
   const all = await load();
   const plan = isReserve ? await weekEntries(ctx).catch(() => []) : [];
   const planServ = {}; plan.forEach(e => { planServ[e.rid] = (planServ[e.rid] || 0) + (e.servings || 0); });
   let pick = lsGet("garde.pick", []).filter(id => all.some(r => r.id === id)), done = lsGet("garde.done", []), serv = lsGet("garde.serv", {});
   const planned = all.filter(r => planServ[r.id]);
-  const draw = () => {
+  const draw = async () => {
     const groups = buildList(all.filter(r => pick.includes(r.id) || planServ[r.id]), { ...serv, ...planServ });
-    const row = r => { const base = parseInt(r.servings) || 0, cur = serv[r.id] || base;
-      return `<li class="prow"><label><input type="checkbox" data-r="${r.id}" ${pick.includes(r.id) ? "checked" : ""}><span>${esc(r.title)}</span></label>${base ? `<span class="step" data-s="${r.id}"><button aria-label="Fewer servings" data-d="-1">−</button><b>${cur}</b><button aria-label="More servings" data-d="1">+</button></span>` : ""}</li>`; };
-    app.innerHTML = `<h1 class="pg">Pantry</h1><p class="lead">Your shopping list. Choose recipes, set how many people you're cooking for, and every ingredient is combined, scaled and sorted by aisle.</p>
-    ${all.length ? `<div class="detail"><div>
-      ${planned.length ? `<div class="panel glass"><h3>This week's plan</h3><ul class="tick">${planned.map(r => `<li class="prow"><a href="#/recipe/${r.id}">${esc(r.title)}</a><small class="meta">${planServ[r.id]} servings</small></li>`).join("")}</ul><a class="btn" href="#/sous" style="margin-top:16px">Edit plan in Sous</a></div>` : ""}
-      <div class="panel glass"><h3>Recipes</h3><ul class="tick">${all.filter(r => !planServ[r.id]).map(row).join("")}</ul></div></div>
-    <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>To buy</h3>${done.length ? `<button class="btn" id="clr">Clear checked</button>` : ""}</div>
-    ${ORDER.filter(a => groups[a]).map(a => `<div class="aisle">${a}</div><ul class="tick">${groups[a].map(e => { const id = a + "|" + e.key; return `<li><label><input type="checkbox" data-i="${esc(id)}" ${done.includes(id) ? "checked" : ""}><span>${esc(itemText(e))}</span></label></li>`; }).join("")}</ul>`).join("") || `<p class="meta">Select a recipe to build your list.</p>`}</div></div>`
-    : `<div class="empty glass"><h3>Your Pantry is empty</h3>Add a recipe and it will show up here.<br><a class="btn main" href="#/add">Add recipe</a></div>`}`;
+    const ok = await show("pantry", { any: all.length > 0, hasDone: done.length > 0,
+      planned: planned.map(r => ({ id: r.id, title: r.title, servings: planServ[r.id] })),
+      recipes: all.filter(r => !planServ[r.id]).map(r => { const base = parseInt(r.servings) || 0; return { id: r.id, title: r.title, checked: pick.includes(r.id), base, cur: serv[r.id] || base }; }),
+      aisles: ORDER.filter(a => groups[a]).map(a => ({ name: a, items: groups[a].map(e => { const id = a + "|" + e.key; return { id, text: itemText(e), checked: done.includes(id) }; }) })) });
+    if (!ok) return;
     app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); lsSet("garde.pick", pick); draw(); });
     app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = c.dataset.i; done = c.checked ? [...done, i] : done.filter(x => x !== i); lsSet("garde.done", done); draw(); });
     app.querySelectorAll("[data-s] button").forEach(b => b.onclick = () => { const id = b.parentElement.dataset.s, r = all.find(x => x.id === id), base = parseInt(r.servings) || 1; serv[id] = Math.max(1, Math.min(99, (serv[id] || base) + +b.dataset.d)); lsSet("garde.serv", serv); draw(); });
@@ -315,10 +291,9 @@ async function pantry() {
   draw();
 }
 
-function settings() {
-  app.innerHTML = `<h1 class="pg">Settings</h1><div class="panel glass"><h3>Account</h3><p class="meta">${esc(user.displayName || "")}<br>${esc(user.email || "")}<br>Account ID: <code>${esc(user.uid)}</code></p><div class="row" style="margin-top:22px"><button class="btn" id="out2">Sign out</button></div></div>
-  <div class="panel glass"><h3>Plan</h3><p class="meta">${isReserve ? '<span class="badge">GARDE RESERVE</span>' : "Free plan"}${isStaff ? ' · <span class="badge">STAFF</span>' : ""}</p><div class="row" style="margin-top:22px"><a class="btn" href="#/reserve">${isReserve ? "Manage" : "See Garde Reserve"}</a></div></div>
-  <div class="panel glass"><h3>Your data</h3><p class="meta">Download every recipe as a JSON file.</p><div class="row" style="margin-top:22px"><button class="btn main" id="exp">Export recipes</button></div></div>`;
+// ---- Settings ----
+async function settings() {
+  if (!(await show("settings", { name: user.displayName || "", email: user.email || "", uid: user.uid, reserve: isReserve, staff: isStaff }))) return;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
   $("#exp").onclick = async () => {
     const all = (await load()).map(({ createdAt, ...r }) => r);
@@ -330,10 +305,8 @@ function settings() {
 // ---- Shared helpers and feature modules ----
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const loadBanner = async () => {
-  try { const x = await getDoc(doc(db, "config", "banner")), d = x.exists() ? x.data() : null; $("#banner").innerHTML = d && d.on && d.text ? `<div class="banner">${esc(d.text)}</div>` : ""; } catch {}
-};
-const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, refreshBanner: loadBanner, invalidate: () => { recipes = null; }, setUnsub: f => { unsub = f; },
+const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, refreshBanner: loadBanner,
+  invalidate: () => { recipes = null; }, setUnsub: f => { unsub = f; },
   get user() { return user; }, get isStaff() { return isStaff; }, get isAdmin() { return isAdmin; }, get isReserve() { return isReserve; } };
 const P = mountSupport(ctx), S = mountSous(ctx);
 loadBanner();

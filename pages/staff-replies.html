@@ -1,0 +1,9 @@
+{{> staff#head}}
+<p class="lead">Saved replies appear in the ticket reply box. Use {name} for the customer's first name and {ticket} for the ticket code.</p>
+<div class="panel glass"><h3>New saved reply</h3><label for="rt" style="margin-top:0">Title</label><input id="rt" maxlength="60"><label for="rx">Text</label><textarea id="rx"></textarea><div class="row" style="margin-top:20px"><button class="btn main" id="ra">Save reply</button></div></div>
+<h3 style="margin:30px 0 16px">Your team's replies</h3><div id="rl"></div>
+<h3 style="margin:30px 0 16px">Built in</h3>
+{{#each builtin}}<div class="panel glass"><b>{{title}}</b><p class="meta" style="margin-top:8px">{{text}}</p></div>{{/each}}
+
+<template id="list">{{#each items}}<div class="panel glass"><div class="row" style="justify-content:space-between"><b>{{title}}</b><button class="btn danger" data-d="{{id}}">Delete</button></div><p class="meta" style="margin-top:8px;white-space:pre-wrap">{{text}}</p></div>{{else}}<p class="meta">None yet.</p>{{/each}}</template>
+<template id="error"><p class="meta">Couldn't load replies.</p></template>

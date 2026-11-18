@@ -1,0 +1,5 @@
+{{> staff#head}}
+<div class="bar"><input id="q" type="search" placeholder="Search subject, name, email or ticket code" aria-label="Search tickets">{{#each filters}}<button class="chip" data-f="{{k}}" aria-pressed="{{on}}">{{label}}</button>{{/each}}</div>
+<div id="tl"></div>
+
+<template id="list">{{#if list}}{{> shared#rows}}{{else}}<div class="empty glass"><h3>Nothing here</h3>No tickets match this view.</div>{{/if}}</template>

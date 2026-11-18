@@ -1,0 +1,30 @@
+<!-- The navigation bar and footer. Edit links and labels here. -->
+<template id="nav">
+<a class="logo" href="#/">Garde</a>
+{{#if authed}}
+<a class="l" href="#/dashboard"{{#if on.dashboard}} aria-current="page"{{/if}}>Recipes</a>
+<a class="l" href="#/collections"{{#if on.collections}} aria-current="page"{{/if}}>Collections</a>
+<a class="l" href="#/sous"{{#if on.sous}} aria-current="page"{{/if}}>Sous</a>
+<a class="l" href="#/pantry"{{#if on.pantry}} aria-current="page"{{/if}}>Pantry</a>
+<a class="l" href="#/add"{{#if on.add}} aria-current="page"{{/if}}>Add</a>
+<a class="l" href="#/support"{{#if on.support}} aria-current="page"{{/if}}>Support{{#if supportBadge}}<span class="navbadge">{{supportBadge}}</span>{{/if}}</a>
+<a class="l" href="#/reserve"{{#if on.reserve}} aria-current="page"{{/if}}>Reserve</a>
+<a class="l hide" href="#/about"{{#if on.about}} aria-current="page"{{/if}}>About</a>
+{{#if staff}}<a class="l" href="#/staff"{{#if on.staff}} aria-current="page"{{/if}}>Staff{{#if staffBadge}}<span class="navbadge">{{staffBadge}}</span>{{/if}}</a>{{/if}}
+<a href="#/settings" aria-label="Settings"><img class="avatar" src="{{photo}}" alt="" referrerpolicy="no-referrer"></a>
+{{else}}
+<a class="l" href="#/"{{#if on.home}} aria-current="page"{{/if}}>Home</a>
+<a class="l hide" href="#/features"{{#if on.features}} aria-current="page"{{/if}}>Features</a>
+<a class="l hide" href="#/reserve"{{#if on.reserve}} aria-current="page"{{/if}}>Reserve</a>
+<a class="l hide" href="#/support"{{#if on.support}} aria-current="page"{{/if}}>Support</a>
+<a class="l hide" href="#/about"{{#if on.about}} aria-current="page"{{/if}}>About</a>
+<a class="btn main" href="#/login">Sign in</a>
+{{/if}}
+</template>
+
+<template id="footer">
+<div class="foot glass"><div><a class="logo" href="#/">Garde</a><p>Your recipes, all in one place.</p></div>
+<nav aria-label="Footer"><a href="#/features">Features</a><a href="#/reserve">Garde Reserve</a><a href="#/support">Support</a><a href="#/about">About &amp; FAQ</a><a href="#/login">Sign in</a><a href="#/add">Add a recipe</a></nav></div>
+</template>
+
+<template id="banner">{{#if text}}<div class="banner">{{text}}</div>{{/if}}</template>

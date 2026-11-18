@@ -1,0 +1,16 @@
+<template id="list">{{> staff#head}}
+<p class="lead">The recipes Reserve members can browse in Sous. Changes show up for members right away.</p>
+<div class="bar"><button class="btn main" id="new">Add recipe</button><button class="btn" id="seed">Add the {{starter}} starter recipes</button></div>
+{{#each items}}<div class="trow glass"><b>{{title}}</b><span class="row" style="flex-wrap:nowrap"><button class="btn" data-e="{{id}}">Edit</button><button class="btn danger" data-d="{{id}}">Delete</button></span><small>{{time}} · {{servings}} servings · {{tags}}</small></div>{{else}}<div class="empty glass"><h3>The library is empty</h3>Members currently see the built-in starter recipes. Add the starter set here to edit them, or add your own.</div>{{/each}}
+</template>
+
+<template id="editor">{{> staff#head}}
+<div class="panel glass"><h3>{{#if id}}Edit recipe{{else}}New library recipe{{/if}}</h3>
+  <label for="iu" style="margin-top:0">Import from a link (optional)</label><div class="row nowrap"><input id="iu" type="url" placeholder="https://…"><button class="btn" id="ib">Import</button></div><p class="status" id="is"></p>
+  <label for="lt">Title</label><input id="lt" value="{{title}}">
+  <div class="two"><div><label for="ltm">Time</label><input id="ltm" value="{{time}}" placeholder="30 min"></div><div><label for="lsv">Servings</label><input id="lsv" value="{{servings}}" inputmode="numeric"></div></div>
+  <label for="lin">Ingredients (one per line)</label><textarea id="lin">{{ingredients}}</textarea>
+  <label for="lst">Steps (one per line)</label><textarea id="lst">{{steps}}</textarea>
+  <div class="two"><div><label for="ltg">Tags (comma separated)</label><input id="ltg" value="{{tags}}" placeholder="Dinner, Vegetarian, Quick"></div><div><label for="lim">Photo link</label><input id="lim" value="{{image}}"></div></div>
+  <div class="row" style="margin-top:28px"><button class="btn main" id="ls">Save recipe</button><button class="btn" id="lc">Cancel</button></div></div>
+</template>

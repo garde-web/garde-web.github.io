@@ -1,0 +1,10 @@
+<div class="detail">
+  {{#if image}}<img class="cover" src="{{image}}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">{{/if}}
+  <div class="hdr"><div><h2>{{title}}</h2><p class="meta">{{meta}}{{#if source}} · <a href="{{source}}" target="_blank" rel="noopener noreferrer">Original</a>{{/if}}</p></div>
+    <div class="row"><button class="btn" id="fv">{{#if favorite}}★ Favorited{{else}}☆ Favorite{{/if}}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/{{id}}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
+  <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>{{#if base}}<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>{{/if}}</div><ul id="il"></ul></div>
+  <div class="panel glass"><h3>Steps</h3><ol>{{#each steps}}<li>{{.}}</li>{{/each}}</ol>{{#if notes}}<h3 style="margin-top:28px">Notes</h3><p class="meta notes">{{notes}}</p>{{/if}}</div>
+</div>
+
+<template id="notfound"><div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div></template>
+<template id="ingredients">{{#each items}}<li>{{.}}</li>{{/each}}</template>

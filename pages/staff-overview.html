@@ -1,0 +1,8 @@
+{{> staff#head}}
+<div class="stats" id="kpi"></div>
+<div class="detail"><div><h3 style="margin-bottom:16px">Needs attention</h3><div id="na"></div></div><div><h3 style="margin-bottom:16px">Recent activity</h3><div class="panel glass" id="ac"><p class="meta">Loading…</p></div></div></div>
+
+<template id="kpi">{{#each cards}}<div class="glass"><b>{{n}}</b>{{label}}</div>{{/each}}</template>
+<template id="na">{{#if list}}{{> shared#rows}}{{else}}<div class="empty glass"><h3>All caught up</h3>No tickets are waiting for a reply.</div>{{/if}}</template>
+<template id="activity">{{#each items}}<div class="note"><small>{{ago}}</small><b>{{who}}</b> {{action}} {{target}}{{#if detail}} <span class="meta">({{detail}})</span>{{/if}}</div>{{else}}<p class="meta">Nothing yet. Granting Reserve, closing tickets and similar actions show up here.</p>{{/each}}</template>
+<template id="activity-error"><p class="meta">Couldn't load activity.</p></template>

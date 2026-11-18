@@ -1,0 +1,13 @@
+<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#17493a">$9.99 / MONTH</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p>
+  <div class="row" id="cta">
+    {{#if signedOut}}<a class="btn main big" href="#/login">Sign in to request access</a>
+    {{else}}{{#if member}}<span class="badge" style="background:#fff;color:#17493a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/sous">Open Sous</a><a class="btn" href="#/support">Priority support</a>
+    {{else}}<button class="btn main big" id="req">Request access</button>{{/if}}{{/if}}
+  </div></div>
+  <ul><li>Unlimited recipes</li><li>Sous meal planner</li><li>Priority support</li><li>Reserve badge on your account</li></ul></section>
+<div class="grid3">
+  <div class="glass"><h3>Unlimited recipes</h3><p>Free accounts hold {{limit}} recipes. Reserve has no limit.</p></div>
+  <div class="glass"><h3>Sous meal planner</h3><p>Plan your week from the recipe library or your own recipes. Every ingredient lands in your Pantry.</p></div>
+  <div class="glass"><h3>Priority support</h3><p>Your tickets are pinned to the top of our queue.</p></div>
+</div>
+<p class="meta" style="text-align:center;margin-top:36px">Reserve is rolling out now. Request access and our team will set you up in your ticket.</p>

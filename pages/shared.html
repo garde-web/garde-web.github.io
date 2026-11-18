@@ -1,0 +1,2 @@
+<!-- Ticket rows used by Support and the Staff pages. -->
+<template id="rows">{{#each list}}<a class="trow glass" href="#/ticket/{{id}}"><b>{{#if unread}}<i class="dot" title="New reply"></i>{{/if}}{{#if priority}}<span class="badge">RESERVE</span> {{/if}}{{subject}}</b><span class="st {{status}}">{{label}}</span><small>{{meta}}</small></a>{{/each}}</template>

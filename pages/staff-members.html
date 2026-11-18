@@ -1,0 +1,11 @@
+{{> staff#head}}
+<p class="lead">Everyone who has signed in. Grant or revoke Garde Reserve{{#if admin}} and manage the team{{/if}}.</p>
+<div class="bar"><input id="mq" type="search" placeholder="Search by name or email" aria-label="Search members"><button class="chip" id="ro" aria-pressed="false">Reserve only</button><button class="chip" id="so" aria-pressed="false">Team only</button>
+  <select id="gm" style="width:auto" aria-label="Reserve length"><option value="0">Grant: no end date</option><option value="1">Grant: 1 month</option><option value="3">Grant: 3 months</option><option value="12">Grant: 12 months</option></select></div>
+<div id="ml"></div>
+<div class="panel glass" style="margin-top:28px"><h3>Add by account ID</h3><p class="meta">For someone who hasn't signed in since members were added. They can copy their ID from Settings.</p>
+  <div class="row nowrap" style="margin-top:16px"><input id="uid" placeholder="Account ID" aria-label="Account ID"><button class="btn main" id="gu">Grant Reserve</button></div></div>
+
+<template id="list">{{#each members}}<div class="trow glass"><b>{{name}} {{#if reserve}}<span class="badge">RESERVE</span>{{/if}}{{#if role}}<span class="badge dark">{{role}}</span>{{/if}}</b>
+<span class="row" style="flex-wrap:nowrap"><button class="btn {{reserveClass}}" data-act="{{reserveAct}}" data-id="{{id}}">{{reserveLabel}}</button>{{#if canTeam}}<button class="btn" data-act="{{teamAct}}" data-id="{{id}}">{{teamLabel}}</button>{{/if}}</span>
+<small>{{email}} · last seen {{seen}}{{#if reserve}} · Reserve {{until}}{{/if}}</small></div>{{else}}<div class="empty glass"><h3>No members found</h3>People appear here after they sign in to Garde.</div>{{/each}}</template>

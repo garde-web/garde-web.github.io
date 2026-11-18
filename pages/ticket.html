@@ -1,0 +1,26 @@
+<a class="meta" href="{{back}}">← Back</a>
+<div class="row" style="justify-content:space-between;margin:16px 0 6px"><h1 class="pg" style="margin:0">{{subject}}</h1><div>{{#if priority}}<span class="badge">RESERVE</span> {{/if}}<span class="st {{status}}">{{statusLabel}}</span></div></div>
+<p class="meta">{{code}} · {{category}} · Opened {{opened}}</p>
+<div class="{{#if sv}}tk{{/if}}"><div>
+  <div class="thread" aria-live="polite">{{#each messages}}<div class="msg {{cls}}"><small>{{who}} · {{when}}</small>{{text}}</div>{{/each}}</div>
+  {{#if showRate}}<div class="row" style="margin-bottom:18px"><span class="meta">Was this helpful?</span><button class="btn" data-rate="yes">Yes</button><button class="btn" data-rate="no">No</button></div>{{/if}}
+  {{#if thanks}}<p class="meta">Thanks for the feedback.</p>{{/if}}
+  <div class="panel glass"><label for="rep" style="margin-top:0">{{replyLabel}}</label>
+    {{#if sv}}<select id="mac" aria-label="Saved replies" style="margin-bottom:12px"><option value="">Insert a saved reply…</option>{{#each macros}}<option value="{{i}}">{{title}}</option>{{/each}}</select>{{/if}}
+    <textarea id="rep" maxlength="4000"></textarea>
+    <div class="row" style="margin-top:20px"><button class="btn main" id="go">Send reply</button>{{#if sv}}<button class="btn" id="gc">Send &amp; close</button>{{else}}{{#if canClose}}<button class="btn" id="cls">Close ticket</button>{{/if}}{{/if}}</div></div>
+</div>
+{{#if sv}}<aside class="side">
+  <div class="panel glass"><h3>Customer</h3><p class="meta">{{side.name}}<br>{{side.email}}<br>{{#if side.reserve}}<span class="badge">RESERVE</span> {{side.reserveText}}{{else}}Free plan{{/if}}</p><small class="meta">ID <code>{{side.uid}}</code></small>
+    <div class="row" style="margin-top:16px">{{#if side.reserve}}<button class="btn" id="rv">Revoke Reserve</button>{{else}}<select id="gm" style="width:auto" aria-label="Reserve length"><option value="0">No end date</option><option value="1">1 month</option><option value="3">3 months</option><option value="12">12 months</option></select><button class="btn main" id="gr">Grant Reserve</button>{{/if}}</div></div>
+  <div class="panel glass"><h3>Ticket</h3><label for="sts" style="margin-top:0">Status</label><select id="sts">{{#each side.statuses}}<option value="{{v}}"{{#if on}} selected{{/if}}>{{label}}</option>{{/each}}</select>
+    <p class="meta" style="margin-top:14px">Assigned to <b>{{side.assignee}}</b></p><div class="row" style="margin-top:8px">{{#if side.mine}}<button class="btn" id="un">Unassign</button>{{else}}<button class="btn" id="as">Assign to me</button>{{/if}}</div>
+    <small class="meta" style="display:block;margin-top:14px">{{code}} · {{category}}<br>{{side.ua}}</small></div>
+  <div class="panel glass"><h3>Internal notes</h3>{{#each side.notes}}<div class="note"><small>{{by}} · {{when}} <button class="x" data-dn="{{id}}" aria-label="Delete note">×</button></small>{{text}}</div>{{else}}<p class="meta">Only staff can see notes.</p>{{/each}}
+    <textarea id="nt" style="min-height:70px;margin-top:12px" placeholder="Add a private note"></textarea><div class="row" style="margin-top:12px"><button class="btn" id="an">Add note</button></div></div>
+  {{#if side.others}}<div class="panel glass"><h3>Their other tickets</h3>{{#each side.others}}<a style="display:block;margin-bottom:8px" href="#/ticket/{{id}}">{{subject}} <span class="st {{status}}">{{label}}</span></a>{{/each}}</div>{{/if}}
+</aside>{{/if}}
+</div>
+
+<template id="notfound"><div class="empty glass"><h3>Ticket not found</h3><a class="btn" href="#/support">Back to support</a></div></template>
+<template id="noaccess"><div class="empty glass"><h3>No access</h3>You can only open your own tickets.<br><a class="btn" href="#/support">Back to support</a></div></template>

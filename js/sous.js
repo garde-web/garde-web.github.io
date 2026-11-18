@@ -1,3 +1,4 @@
+// Sous, the weekly meal planner (Garde Reserve): logic only. Markup is in pages/sous.html.
 import { collection, doc, getDoc, getDocs, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { LIBRARY } from "./library.js";
 
@@ -17,7 +18,7 @@ export async function weekEntries(ctx, d = new Date()) {
 }
 
 export function mountSous(ctx) {
-  const { app, $, esc, toast, db } = ctx;
+  const { app, $, toast, db, show, fill } = ctx;
 
   async function loadLibrary() {
     try { const s = await getDocs(collection(db, "library")); const l = s.docs.map(d => ({ id: d.id, ...d.data() })); if (l.length) return l; } catch (e) {}
@@ -25,12 +26,11 @@ export function mountSous(ctx) {
   }
 
   async function sous() {
-    if (!ctx.isReserve) { app.innerHTML = `<div class="center glass"><span class="badge">GARDE RESERVE</span><h2 style="margin-top:18px">Meet Sous</h2><p>Your weekly meal planner. Pick recipes from the library or your own collection, and Garde puts every ingredient in your Pantry.</p><a class="btn main" href="#/reserve">See Garde Reserve</a></div>`; return; }
-    app.innerHTML = `<p class="meta">Loading your week…</p>`;
+    if (!ctx.isReserve) { await show("sous#locked"); return; }
+    await show("sous#loading");
     let lib, mine;
-    try { [lib, mine] = await Promise.all([loadLibrary(), ctx.load()]); } catch (e) { app.innerHTML = `<div class="empty glass"><h3>Couldn't load Sous</h3>Check your connection and refresh.</div>`; return; }
+    try { [lib, mine] = await Promise.all([loadLibrary(), ctx.load()]); } catch (e) { await show("sous#error"); return; }
     let week = mondayOf(new Date()), plan = {}, tab = "plan", q = "", tag = "All", maxT = 0, src = "library", day = (new Date().getDay() + 6) % 7, meal = "dinner";
-    const tagList = () => ["All", ...new Set(items().reduce((a, r) => a.concat(r.tags || []), []))];
     const loadPlan = async () => { try { const s = await getDoc(planRef(ctx, keyOf(week))); plan = s.exists() ? s.data().slots || {} : {}; } catch (e) { plan = {}; } };
     const save = () => setDoc(planRef(ctx, keyOf(week)), { slots: plan, updatedAt: serverTimestamp() }).catch(() => toast("Couldn't save your plan. Check your connection."));
     const label = () => `${week.toLocaleDateString([], { month: "short", day: "numeric" })} – ${addDays(week, 6).toLocaleDateString([], { month: "short", day: "numeric" })}`;
@@ -51,24 +51,15 @@ export function mountSous(ctx) {
         await save(); toast(`Added to ${DAYS[day]} ${meal}`); draw();
       } catch (e) { toast("Couldn't add that recipe. Try again."); }
     };
-    const items = () => src === "mine"
-      ? mine.map(r => ({ ...r, src: "mine", tags: r.tags || [] }))
-      : lib.map(r => ({ ...r, src: "library" }));
+    const items = () => src === "mine" ? mine.map(r => ({ ...r, src: "mine", tags: r.tags || [] })) : lib.map(r => ({ ...r, src: "library" }));
+    const tagList = () => ["All", ...new Set(items().reduce((a, r) => a.concat(r.tags || []), []))];
     const filtered = () => items().filter(r => (tag === "All" || (r.tags || []).includes(tag)) && (!maxT || mins(r.time) <= maxT) && `${r.title} ${(r.tags || []).join(" ")} ${(r.ingredients || []).join(" ")}`.toLowerCase().includes(q));
 
-    const shell = () => {
-      const entries = Object.values(plan).reduce((a, v) => a.concat(v), []);
-      app.innerHTML = `<h1 class="pg">Sous</h1><p class="lead">Plan your week. Every recipe you add is saved to your recipes and its ingredients go straight into your Pantry.</p>
-        <div class="bar"><a class="chip" href="#/sous" data-tab="plan" aria-pressed="${tab === "plan"}">Plan</a><a class="chip" href="#/sous" data-tab="lib" aria-pressed="${tab === "lib"}">Library</a>
-          <span class="meta" style="margin-left:auto">${entries.length} meal${entries.length === 1 ? "" : "s"} planned · ${new Set(entries.map(e => e.rid)).size} recipe${new Set(entries.map(e => e.rid)).size === 1 ? "" : "s"}</span><a class="btn" href="#/pantry">Open Pantry</a></div>
-        <div id="body"></div>`;
-      app.querySelectorAll("[data-tab]").forEach(b => b.onclick = e => { e.preventDefault(); tab = b.dataset.tab; draw(); });
-    };
-
-    const drawPlan = () => {
-      $("#body").innerHTML = `<div class="bar" style="margin-top:0"><button class="btn" id="pw" aria-label="Previous week">‹</button><b>${label()}</b><button class="btn" id="nw" aria-label="Next week">›</button><button class="btn" id="tw">This week</button><span style="margin-left:auto"></span><button class="btn" id="cp">Copy last week</button><button class="btn danger" id="cl">Clear week</button></div>
-      <div class="week">${DAYS.map((d, i) => { const date = addDays(week, i), today = keyOf(date) === keyOf(new Date());
-        return `<div class="glass day ${today ? "today" : ""}"><div class="dh"><b>${FULL[i]}</b><small>${date.toLocaleDateString([], { month: "short", day: "numeric" })}</small></div>${MEALS.map(([m, ml]) => `<div class="meal"><span class="aisle">${ml}</span>${(plan[`${i}-${m}`] || []).map((e, n) => `<div class="pe"><a href="#/recipe/${esc(e.rid)}">${esc(e.title)}</a><span class="step" data-k="${i}-${m}" data-n="${n}"><button data-d="-1" aria-label="Fewer servings">−</button><b>${e.servings}</b><button data-d="1" aria-label="More servings">+</button><button data-x aria-label="Remove">×</button></span></div>`).join("")}<button class="addb" data-add="${i}-${m}">+ Add</button></div>`).join("")}</div>`; }).join("")}</div>`;
+    const drawPlan = async () => {
+      const days = DAYS.map((d, i) => { const date = addDays(week, i);
+        return { name: FULL[i], date: date.toLocaleDateString([], { month: "short", day: "numeric" }), today: keyOf(date) === keyOf(new Date()),
+          meals: MEALS.map(([m, ml]) => { const key = `${i}-${m}`; return { key, label: ml, entries: (plan[key] || []).map((e, n) => ({ n, key, rid: e.rid, title: e.title, servings: e.servings })) }; }) }; });
+      if (!(await fill($("#body"), "sous#plan", { label: label(), days }))) return;
       const move = n => async () => { week = addDays(week, n); await loadPlan(); draw(); };
       $("#pw").onclick = move(-7); $("#nw").onclick = move(7); $("#tw").onclick = async () => { week = mondayOf(new Date()); await loadPlan(); draw(); };
       $("#cl").onclick = () => { if (Object.keys(plan).length && confirm("Clear everything planned for this week?")) { plan = {}; save(); draw(); } };
@@ -81,18 +72,16 @@ export function mountSous(ctx) {
       });
     };
 
-    const drawLib = () => {
-      $("#body").innerHTML = `<div class="panel glass" style="padding:20px 24px"><div class="row" style="gap:12px"><b>Planning for</b><select id="sd" style="width:auto" aria-label="Day">${FULL.map((d, i) => `<option value="${i}" ${i === day ? "selected" : ""}>${d}</option>`).join("")}</select><select id="sm" style="width:auto" aria-label="Meal">${MEALS.map(([m, l]) => `<option value="${m}" ${m === meal ? "selected" : ""}>${l}</option>`).join("")}</select><span class="meta">week of ${label()}</span><button class="btn" id="sp" style="margin-left:auto">Surprise me</button></div></div>
-        <div class="bar"><input id="sq" type="search" placeholder="Search by recipe, ingredient or tag" aria-label="Search recipes" value="${esc(q)}"><select id="st" style="width:auto" aria-label="Time"><option value="0">Any time</option><option value="20" ${maxT === 20 ? "selected" : ""}>Under 20 min</option><option value="30" ${maxT === 30 ? "selected" : ""}>Under 30 min</option><option value="60" ${maxT === 60 ? "selected" : ""}>Under 1 hour</option></select>
-          <button class="chip" data-s="library" aria-pressed="${src === "library"}">Garde library</button><button class="chip" data-s="mine" aria-pressed="${src === "mine"}">My recipes</button></div>
-        <div class="bar" style="margin-top:0">${tagList().map(t => `<button class="chip" data-t="${esc(t)}" aria-pressed="${t === tag}">${esc(t)}</button>`).join("")}</div><div class="grid" id="cards"></div>`;
+    const drawLib = async () => {
+      const ok = await fill($("#body"), "sous#library", { label: label(), q,
+        days: FULL.map((name, i) => ({ i, name, on: i === day })), meals: MEALS.map(([v, l]) => ({ v, label: l, on: v === meal })),
+        times: [[0, "Any time"], [20, "Under 20 min"], [30, "Under 30 min"], [60, "Under 1 hour"]].map(([v, l]) => ({ v, label: l, on: v === maxT })),
+        srcLibrary: src === "library", srcMine: src === "mine", tags: tagList().map(t => ({ t, on: t === tag })) });
+      if (!ok) return;
       const cards = () => {
         const f = filtered();
-        $("#cards").innerHTML = f.length ? f.map((r, i) => `<div class="glass panel sc"><small class="meta">${esc(r.time || "")}${r.time && r.servings ? " · " : ""}${r.servings ? r.servings + " servings" : ""}</small><h3>${esc(r.title)}</h3>
-          <div>${(r.tags || []).slice(0, 3).map(t => `<span class="pill">${esc(t)}</span>`).join("")}</div>
-          <details><summary class="meta">${(r.ingredients || []).length} ingredients</summary><ul>${(r.ingredients || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>
-          <button class="btn main" data-i="${i}">Add to ${DAYS[day]} ${meal}</button></div>`).join("") : `<div class="empty glass" style="grid-column:1/-1"><h3>No recipes match</h3>Try a different search or filter.</div>`;
-        app.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { b.disabled = true; addToPlan(f[+b.dataset.i]); });
+        fill($("#cards"), "sous#cards", { btn: `Add to ${DAYS[day]} ${meal}`, cards: f.map((r, i) => ({ i, info: [r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · "), title: r.title, tags: (r.tags || []).slice(0, 3), count: (r.ingredients || []).length, ings: r.ingredients || [] })) })
+          .then(() => app.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { b.disabled = true; addToPlan(f[+b.dataset.i]); }));
         $("#sp").onclick = () => { if (f.length) addToPlan(f[Math.floor(Math.random() * f.length)]); else toast("No recipes to pick from"); };
       };
       $("#sd").onchange = e => { day = +e.target.value; cards(); };
@@ -103,8 +92,15 @@ export function mountSous(ctx) {
       app.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { tag = b.dataset.t; drawLib(); });
       cards();
     };
-    const draw = () => { shell(); (tab === "plan" ? drawPlan : drawLib)(); };
-    await loadPlan(); draw();
+
+    const draw = async () => {
+      const entries = Object.values(plan).reduce((a, v) => a.concat(v), []), recipes = new Set(entries.map(e => e.rid)).size;
+      const ok = await show("sous#shell", { planOn: tab === "plan", libOn: tab === "lib", summary: `${entries.length} meal${entries.length === 1 ? "" : "s"} planned · ${recipes} recipe${recipes === 1 ? "" : "s"}` });
+      if (!ok) return;
+      app.querySelectorAll("[data-tab]").forEach(b => b.onclick = e => { e.preventDefault(); tab = b.dataset.tab; draw(); });
+      await (tab === "plan" ? drawPlan : drawLib)();
+    };
+    await loadPlan(); await draw();
   }
   return { sous };
 }

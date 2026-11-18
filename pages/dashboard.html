@@ -1,0 +1,11 @@
+<h2>My recipes</h2>
+<div class="bar"><input id="q" type="search" placeholder="Search by name, ingredient or tag" aria-label="Search recipes"><button class="chip" id="fav" aria-pressed="false">Favorites</button><a class="btn main" href="#/add">Add recipe</a></div>
+<div id="list"></div>
+
+<template id="loading"><h2>My recipes</h2><p class="status">Loading…</p></template>
+<template id="error"><h2>My recipes</h2><div class="empty glass"><h3>Couldn't load your recipes</h3>Check your Firebase config and Firestore rules, then refresh.</div></template>
+<template id="list">
+{{#if none}}<div class="empty glass"><h3>No recipes yet</h3>Add your first one from a link, a photo, or by typing it in.<br><a class="btn main" href="#/add">Add recipe</a></div>
+{{else}}{{#if nomatch}}<div class="empty glass"><h3>Nothing matches</h3>Try a different search or clear the Favorites filter.</div>
+{{else}}<div class="grid">{{#each cards}}<a class="rc glass" href="#/recipe/{{id}}"><div class="img"><span>{{letter}}</span>{{#if image}}<img src="{{image}}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">{{/if}}</div><div class="body"><h3>{{#if favorite}}★ {{/if}}{{title}}</h3><small>{{meta}}</small></div></a>{{/each}}</div>{{/if}}{{/if}}
+</template>

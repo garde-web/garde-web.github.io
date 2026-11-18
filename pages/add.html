@@ -1,0 +1,19 @@
+<h1 class="pg">{{#if editing}}Edit recipe{{else}}Add a recipe{{/if}}</h1>
+{{#unless editing}}
+<div class="two quick">
+  <div class="panel glass"><h3>Paste a link</h3><p class="meta">Any recipe website. It imports as soon as you paste.</p>
+    <div class="row nowrap"><input id="url" type="url" placeholder="https://…" aria-label="Recipe link"><button class="btn main" id="imp">Import</button></div></div>
+  <div class="panel glass drop" id="drop"><h3>Upload a photo</h3><p class="meta">Recipe card, cookbook page or screenshot. Drop it here, choose a file, or paste an image.</p>
+    <label class="btn main" for="scan">Choose photo</label><input class="sr" id="scan" type="file" accept="image/*"></div></div>
+<details class="panel glass paste" id="pastebox"><summary>Paste recipe text instead</summary><p class="meta">Copy everything from a recipe page (or just the ingredients and steps) and paste it here. Garde picks out the recipe and skips the story.</p><textarea id="ptxt" placeholder="Paste here…"></textarea><div class="row" style="margin-top:16px"><button class="btn main" id="pgo">Extract recipe</button></div></details>
+<details class="panel glass paste" id="bm"><summary>Save from any website with one click</summary><p class="meta">Drag this button to your bookmarks bar. On any recipe page, click it and the recipe opens here, ready to save. It works on sites that block automatic import.</p><a class="btn main" id="bml" href="#" style="margin-top:6px">Save to Garde</a></details>
+<div class="prog" id="prog" hidden><span class="bar"><i></i></span><small id="pt"></small></div>
+{{/unless}}
+<p class="status" id="st" role="status">{{msg}}</p>
+<div class="panel glass"><label for="title">Title</label><input id="title" value="{{title}}" required>
+  <div class="two"><div><label for="time">Total time</label><input id="time" value="{{time}}" placeholder="45 min"></div><div><label for="serv">Servings</label><input id="serv" value="{{servings}}" inputmode="numeric"></div></div>
+  <label for="ing">Ingredients (one per line)</label><textarea id="ing">{{ingredients}}</textarea>
+  <label for="stp">Steps (one per line)</label><textarea id="stp">{{steps}}</textarea>
+  <div class="two"><div><label for="tags">Tags (comma separated)</label><input id="tags" value="{{tags}}" placeholder="dinner, vegetarian"></div><div><label for="img">Photo link</label><input id="img" value="{{image}}"></div></div>
+  <label for="notes">Notes</label><textarea id="notes" style="min-height:80px">{{notes}}</textarea>
+  <div class="row" style="margin-top:28px"><button class="btn main" id="save">Save recipe</button><a class="btn" href="#/dashboard">Cancel</a></div></div>

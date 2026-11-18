@@ -1,0 +1,3 @@
+<!-- The Staff header and tab bar, shared by every Staff page. -->
+<template id="head"><h1 class="pg">Staff</h1><div class="bar" style="margin-top:0">{{#each tabs}}<a class="chip" href="#/staff/{{k}}" aria-pressed="{{on}}">{{label}}</a>{{/each}}</div></template>
+<template id="denied"><div class="empty glass"><h3>Staff only</h3>This page is for authorised Garde accounts.<br><a class="btn" href="#/dashboard">Back to my recipes</a></div></template>
