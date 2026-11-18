@@ -50,7 +50,7 @@ function nav() {
   const l = (href, label, n = 0) => `<a class="l" href="${href}" ${h === href || h.startsWith(href + "/") ? "aria-current=page" : ""}>${label}${n ? `<span class="navbadge">${n}</span>` : ""}</a>`;
   const lh = (href, label) => l(href, label).replace('class="l"', 'class="l hide"');
   $("#nav").innerHTML = `<a class="logo" href="#/">Garde</a>` + (user
-    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/sous", "Sous")}${l("#/pantry", "Pantry")}${l("#/add", "Add")}${l("#/support", "Support", badges.support)}${l("#/reserve", "Reserve")}${isStaff ? l("#/staff", "Staff", badges.staff) : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
+    ? `${l("#/dashboard", "Recipes")}${l("#/collections", "Collections")}${l("#/sous", "Sous")}${l("#/pantry", "Pantry")}${l("#/add", "Add")}${l("#/support", "Support", badges.support)}${l("#/reserve", "Reserve")}${lh("#/about", "About")}${isStaff ? l("#/staff", "Staff", badges.staff) : ""}<a href="#/settings" aria-label="Settings"><img class="avatar" src="${esc(user.photoURL || "")}" alt="" referrerpolicy="no-referrer"></a>`
     : `${l("#/", "Home")}${lh("#/features", "Features")}${lh("#/reserve", "Reserve")}${lh("#/support", "Support")}${lh("#/about", "About")}<a class="btn main" href="#/login">Sign in</a>`);
   $("#foot").innerHTML = pg.footer();
   const o = $("#out"); if (o) o.onclick = () => signOut(auth).then(() => location.hash = "#/");
