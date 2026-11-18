@@ -240,7 +240,7 @@ function form(id) {
         if (!/^https?:\/\//i.test(u)) return st("Paste a full recipe link first.");
         busy(true, "Fetching the recipe…"); st("");
         try { const x = await importUrl(u); busy(false); render(fill(cur(), x), "Imported. Check the details, then save."); }
-        catch (e) { busy(false); const m = "Some sites block automatic import. Use the "Save to Garde" button below, or paste the recipe text and Garde will pick out the ingredients and steps."; if (e.partial) render(fill(cur(), e.partial), "I found the title and photo but not the recipe. " + m); else st("Couldn't open that page. " + m); const b = $("#bm"); if (b) b.open = true; }
+        catch (e) { busy(false); const m = "Some sites block automatic import. Use the Save to Garde button below, or paste the recipe text and Garde will pick out the ingredients and steps."; if (e.partial) render(fill(cur(), e.partial), "I found the title and photo but not the recipe. " + m); else st("Couldn't open that page. " + m); const b = $("#bm"); if (b) b.open = true; }
       };
       $("#imp").onclick = () => doImport($("#url").value);
       $("#url").onkeydown = e => { if (e.key === "Enter") doImport(e.target.value); };
