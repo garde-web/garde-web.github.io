@@ -3,14 +3,17 @@ const row = (flip, title, text, mock) => `<section class="feat ${flip ? "flip" :
 export const footer = () => `<div class="foot glass"><div><a class="logo" href="#/">Garde</a><p>Your recipes, all in one place.</p></div>
 <nav aria-label="Footer"><a href="#/features">Features</a><a href="#/reserve">Garde Reserve</a><a href="#/support">Support</a><a href="#/about">About &amp; FAQ</a><a href="#/login">Sign in</a><a href="#/add">Add a recipe</a></nav></div>`;
 
-const faq = `<div class="faq">${[
+export const FAQ = [
   ["Is Garde free?", "Yes. Free accounts can save up to 50 recipes. Garde Reserve ($9.99/month) removes the limit and adds the Sous meal planner and priority support."],
   ["Who can see my recipes?", "Only you. Each account's recipes are private and tied to your Google sign-in."],
-  ["Does link import work on every site?", "It works on most sites that publish structured recipe data. If a page doesn't, Garde fills in the title and photo and you add the rest."],
+  ["Does link import work on every site?", "It works on most sites. For the few that block automatic import, the Save to Garde bookmarklet on the Add page grabs the recipe straight from your browser."],
+  ["How does the Pantry work?", "Pick recipes, set how many servings you want, and Garde combines and scales every ingredient into one shopping list sorted by aisle."],
+  ["What is Sous?", "Sous is the weekly meal planner in Garde Reserve. Plan breakfast, lunch and dinner for the week, and the ingredients flow into your Pantry."],
   ["Can I use handwritten recipe cards?", "Yes. Upload a photo and Garde reads the text. Clear, well-lit printed text works best; handwriting may need some cleanup."],
   ["How do I get help?", "Open a ticket from the Support page. A member of the Garde team will reply right in your ticket."],
   ["Can I take my recipes with me?", "Yes. Settings has an export button that downloads everything as a file."]
-].map(([q, a]) => `<details class="glass"><summary>${q}</summary><p>${a}</p></details>`).join("")}</div>`;
+];
+const faq = `<div class="faq">${FAQ.map(([q, a]) => `<details class="glass"><summary>${q}</summary><p>${a}</p></details>`).join("")}</div>`;
 
 export function home(user) {
   const go = user ? "#/add" : "#/login";
@@ -56,4 +59,28 @@ export const features = () => `<h1 class="pg">Features</h1><p class="lead">Every
 <div class="grid3">${[["", "Link import", "Pull a recipe from a web page into your collection."], ["", "Photo scan", "Read text from recipe cards and cookbook pages."], ["", "Search", "Find recipes by name, ingredient or tag."], ["", "Favorites", "Pin the recipes you make again and again."], ["", "Collections", "See recipes grouped by tag."], ["", "Pantry", "One shopping list, combined, scaled and sorted by aisle."], ["", "Scale servings", "Change servings and every amount adapts."], ["", "Editing", "Fix amounts and add notes any time."], ["", "Export", "Download all your recipes as a file."], ["", "Private", "Your recipes are visible only to you."], ["", "Support tickets", "Ask for help and follow the reply in one place."], ["", "Garde Reserve", "Unlimited recipes, the Sous meal planner and priority support."]].map(([e, h, p]) => `<div class="glass panel"><i class="mark"></i><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
 <div class="row" style="margin-top:36px"><a class="btn main big" href="#/login">Get started free</a></div>`;
 
-export const about = () => `<h1 class="pg">About Garde</h1><div class="story"><p class="lead">Garde started with a simple problem: loving to cook, but never being able to find the recipe you loved. They were scattered across bookmarks, screenshots and scraps of paper.</p><p>The name comes from garde manger, the kitchen station that keeps and prepares the pantry for everyone else. That is the idea here: one calm, good-looking place for all of them. Save a recipe from anywhere, find it in seconds, and get back to the stove.</p></div><h2>Questions, answered</h2>${faq}`;
+export const about = () => `
+<section class="mission"><span class="eyebrow">Our mission</span>
+  <h1 class="big">Keep every recipe you love. <em>Cook it without the hunt.</em></h1>
+  <p class="lead">Garde exists so the dish you made once and never forgot is always one tap away, wherever you found it.</p></section>
+
+<section class="aboutblock"><h2>Where we started</h2>
+  <div class="timeline">
+    <div class="tl"><b>October 29, 2026</b><h3>A problem in the kitchen</h3><p>Jonny loves to cook, and he could never find the recipes he loved. They were scattered across bookmarks, screenshots, blog posts and scraps of paper. So he started building one calm place for all of them.</p></div>
+    <div class="tl"><b>October 2026</b><h3>The first version</h3><p>The first build could save a recipe from a link or a photo of a recipe card and keep it in one place. It was called Recolio, then Commis, until the name finally clicked.</p></div>
+    <div class="tl"><b>November 2026</b><h3>Garde</h3><p>The name comes from garde manger, the kitchen station that keeps and prepares the pantry for everyone else. Around it grew the Pantry shopping list, Sous weekly planning, Garde Reserve and a support team.</p></div>
+  </div></section>
+
+<section class="aboutblock"><h2>Why we build it</h2>
+  <div class="grid3"><div class="glass"><i class="mark"></i><h3>Your recipes are yours</h3><p>They're private to you, and you can export all of them whenever you like.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Fast beats fancy</h3><p>Saving a recipe should take seconds, not an evening of copying and pasting.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Cooking should feel calm</h3><p>No story to scroll past, no ads between the steps. Just the ingredients and what to do.</p></div></div></section>
+
+<section class="aboutblock me"><figure><img src="img/jonny.jpg" alt="A person standing on a quiet street at dusk, looking up at an orange and pink sunset sky" loading="lazy"><figcaption>Golden hour, somewhere on my street.</figcaption></figure>
+  <div><span class="eyebrow">About me</span><h2>Hi, I'm Jonny.</h2>
+  <p class="lead">I'm the person behind Garde. I love cooking, and I love building things for the web.</p>
+  <p>Garde started as a fix for my own problem: I'd make something great, forget where I found it, and spend an hour looking for it. I wanted a place that felt as good to open as the meal felt to eat.</p>
+  <p>I design and build every part of it myself, from the Pantry list to the support desk. If something's confusing or broken, open a ticket and it comes straight to me and the team.</p>
+  <div class="row"><a class="btn main" href="#/support">Say hello</a><a class="btn" href="#/features">See what Garde does</a></div></div></section>
+
+<section class="steps"><h2>Questions, answered</h2>${faq}</section>`;
