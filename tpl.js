@@ -1,4 +1,4 @@
-// A tiny template system so page markup lives in pages/*.html instead of JavaScript.
+// A tiny template system so page markup lives in the .html files instead of JavaScript.
 //   {{name}}  escaped value      {{{name}}}  raw HTML      {{a.b}}  nested value
 //   {{#if x}} … {{else}} … {{/if}}      {{#unless x}} … {{/unless}}
 //   {{#each list}} … {{else}} (empty) … {{/each}}      inside a loop: {{.}} is the item, {{@index}} its position
@@ -25,13 +25,13 @@ function parse(src) {
   return root.body;
 }
 
-// Pages are found relative to this script, so the site works from any URL or sub-folder.
-// pages/NAME.html is expected; NAME.html next to index.html is accepted too in case the folder was flattened.
-const ROOT = new URL("../", import.meta.url);
+// Page files (home.html, about.html, ...) are found next to this script, so the site works from any URL.
+// A pages/ folder is also accepted.
+const ROOT = new URL("./", import.meta.url);
 async function fetchPage(name) {
-  const tries = [`pages/${name}.html`, `${name}.html`];
+  const tries = [`${name}.html`, `pages/${name}.html`];
   for (const t of tries) { try { const r = await fetch(new URL(t, ROOT), { cache: "no-cache" }); if (r.ok) return await r.text(); } catch (e) {} }
-  throw new Error(`Couldn't find ${new URL(tries[0], ROOT).href}. The pages folder must be uploaded next to index.html (open check.html on your site to see what's missing).`);
+  throw new Error(`Couldn't find ${new URL(tries[0], ROOT).href}. Every .html file from the download needs to sit next to index.html (open check.html on your site to see what's missing).`);
 }
 async function loadFile(name) {
   if (files[name]) return files[name];
@@ -50,7 +50,7 @@ async function ensure(nodes) {
 }
 async function get(spec) {
   const [f, id = "main"] = spec.split("#"), file = await loadFile(f);
-  if (!file.frags[id]) throw new Error(`pages/${f}.html has no "${id}" section.`);
+  if (!file.frags[id]) throw new Error(`${f}.html has no "${id}" section.`);
   await ensure(file.frags[id]); return file.frags[id];
 }
 
@@ -85,7 +85,7 @@ export async function fill(el, spec, data, quiet = false) {
   if (gen.get(el) !== g) return false;
   el.innerHTML = html; return true;
 }
-// The FAQ lives in pages/faq.html; this reads it back as [question, answer] pairs for ticket suggestions.
+// The FAQ lives in faq.html; this reads it back as [question, answer] pairs for ticket suggestions.
 export async function faqItems() {
   const f = await loadFile("faq"), plain = h => h.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
   return [...f.src.matchAll(/<summary>([\s\S]*?)<\/summary>\s*<p>([\s\S]*?)<\/p>/g)].map(m => [plain(m[1]), plain(m[2])]);

@@ -1,4 +1,4 @@
-// Sous, the weekly meal planner (Garde Reserve): logic only. Markup is in pages/sous.html.
+// Sous, the weekly meal planner (Garde Reserve): logic only. Markup is in sous.html.
 import { collection, doc, getDoc, getDocs, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { LIBRARY } from "./library.js";
 

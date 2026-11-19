@@ -1,5 +1,5 @@
-// Garde: boot, sign-in, routing and the recipe screens. Page markup lives in pages/*.html; styling in css/style.css.
-import * as fb from "../firebase-config.js";
+// Garde: boot, sign-in, routing and the recipe screens. Page markup lives in the .html files; styling in style.css.
+import * as fb from "./firebase-config.js";
 import { view, fill, esc, faqItems } from "./tpl.js";
 import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
 import { extractRecipe, bookmarklet } from "./extract.js";
@@ -45,7 +45,7 @@ async function login() {
   catch (e) { toast("Sign-in didn't finish. Try again."); }
 }
 
-// ---- Navigation, footer and banner (markup in pages/layout.html) ----
+// ---- Navigation, footer and banner (markup in layout.html) ----
 function nav() {
   const page = (location.hash || "#/").split("/")[1] || "home";
   fill($("#nav"), "layout#nav", { authed: !!user, staff: isStaff, supportBadge: badges.support, staffBadge: badges.staff, photo: user?.photoURL || "", on: { [page === "ticket" ? "support" : page]: true } }, true);

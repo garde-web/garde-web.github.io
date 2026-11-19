@@ -1,4 +1,4 @@
-// Support tickets, the staff console and the Garde Reserve page: logic only. Markup is in pages/support.html, ticket.html, staff-*.html and reserve.html.
+// Support tickets, the staff console and the Garde Reserve page: logic only. Markup is in support.html, ticket.html, staff-*.html and reserve.html.
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, setDoc, query, orderBy, where, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { LIBRARY } from "./library.js";
 
@@ -26,7 +26,7 @@ export function mountSupport(ctx) {
   const grant = async (uid, months, name) => { try { await setDoc(doc(db, "reserve", uid), { since: stamp(), by: me().uid, until: months ? Date.now() + months * 30 * DAYMS : 0 }); audit("granted Reserve to", name || uid, months ? months + " month(s)" : "no end date"); toast("Reserve granted"); } catch (e) { toast("Couldn't update. Check your Firestore rules."); } };
   const revoke = async (uid, name) => { try { await deleteDoc(doc(db, "reserve", uid)); audit("revoked Reserve from", name || uid); toast("Reserve revoked"); } catch (e) { toast("Couldn't update. Check your Firestore rules."); } };
   const cmp = (a, b) => (b.priority ? 1 : 0) - (a.priority ? 1 : 0) || secs(a.updatedAt) - secs(b.updatedAt);
-  // Ticket rows for pages/shared.html
+  // Ticket rows for shared.html
   const rows = (list, sv) => list.map(t => ({ id: t.id, unread: !sv && !!t.unread, priority: sv && !!t.priority, subject: t.subject, status: t.status, label: LABEL[sv ? "staff" : "user"][t.status] || t.status,
     meta: sv ? `${t.name || t.email} · ${t.category} · ${t.assignee ? t.assignee.name : "Unassigned"} · ${t.status === "open" ? "waiting " : ""}${ago(t.updatedAt)}` : `${code(t.id)} · ${t.category} · ${ago(t.updatedAt)}` }));
 
