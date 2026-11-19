@@ -25,11 +25,17 @@ function parse(src) {
   return root.body;
 }
 
+// Pages are found relative to this script, so the site works from any URL or sub-folder.
+// pages/NAME.html is expected; NAME.html next to index.html is accepted too in case the folder was flattened.
+const ROOT = new URL("../", import.meta.url);
+async function fetchPage(name) {
+  const tries = [`pages/${name}.html`, `${name}.html`];
+  for (const t of tries) { try { const r = await fetch(new URL(t, ROOT), { cache: "no-cache" }); if (r.ok) return await r.text(); } catch (e) {} }
+  throw new Error(`Couldn't find ${new URL(tries[0], ROOT).href}. The pages folder must be uploaded next to index.html (open check.html on your site to see what's missing).`);
+}
 async function loadFile(name) {
   if (files[name]) return files[name];
-  const r = await fetch(`pages/${name}.html`, { cache: "no-cache" });
-  if (!r.ok) throw new Error(`pages/${name}.html could not be loaded (${r.status}). Check that the pages folder was uploaded.`);
-  const src = await r.text(), frags = {};
+  const src = await fetchPage(name), frags = {};
   const main = src.replace(/<template id="([\w-]+)">([\s\S]*?)<\/template>/g, (_, id, body) => { frags[id] = parse(body); return ""; });
   if (main.trim() && !frags.main) frags.main = parse(main);
   return files[name] = { src, frags };
@@ -73,9 +79,9 @@ function out(nodes, st) {
 
 export async function view(spec, data = {}) { return out(await get(spec), [{ v: data }]); }
 // Render into an element. If a newer render started meanwhile, this one is dropped and false is returned.
-export async function fill(el, spec, data) {
+export async function fill(el, spec, data, quiet = false) {
   const g = (gen.get(el) || 0) + 1; gen.set(el, g); let html;
-  try { html = await view(spec, data); } catch (e) { console.error(e); html = `<div class="empty glass"><h3>This page couldn't load</h3>${esc(e.message)}</div>`; }
+  try { html = await view(spec, data); } catch (e) { console.error(e); html = quiet ? "" : `<div class="empty glass"><h3>This page couldn't load</h3>${esc(e.message)}</div>`; }
   if (gen.get(el) !== g) return false;
   el.innerHTML = html; return true;
 }

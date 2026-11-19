@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Garde file check</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#16130f}li{list-style:none;padding:2px 0}.ok{color:#17803d}.no{color:#c0341d;font-weight:700}code{background:#f4f1ec;padding:2px 6px;border-radius:6px}</style></head>
+<body><h1>Garde file check</h1><p>This page checks that every file the site needs can be reached. Anything marked ✗ is missing or in the wrong folder.</p><p>Site folder: <code id="root"></code></p><ul id="out"></ul>
+<script>
+const files = ["index.html", "css/style.css", "firebase-config.js", "img/jonny.jpg",
+  "js/app.js", "js/tpl.js", "js/support.js", "js/sous.js", "js/extract.js", "js/library.js", "js/scale.js",
+  ...["about","add","collections","dashboard","faq","features","home","layout","login","pantry","recipe","reserve","settings","shared","sous","staff-library","staff-members","staff-overview","staff-replies","staff-settings","staff-tickets","staff","support","ticket"].map(n => "pages/" + n + ".html")];
+document.getElementById("root").textContent = new URL("./", location.href).href;
+files.forEach(async f => {
+  const li = document.createElement("li"); document.getElementById("out").append(li);
+  try { const r = await fetch(f, { cache: "no-cache" }); li.className = r.ok ? "ok" : "no"; li.textContent = (r.ok ? "✓ " : "✗ ") + f + (r.ok ? "" : "  (" + r.status + ")"); }
+  catch (e) { li.className = "no"; li.textContent = "✗ " + f; }
+});
+</script></body></html>

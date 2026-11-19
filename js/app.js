@@ -48,11 +48,11 @@ async function login() {
 // ---- Navigation, footer and banner (markup in pages/layout.html) ----
 function nav() {
   const page = (location.hash || "#/").split("/")[1] || "home";
-  fill($("#nav"), "layout#nav", { authed: !!user, staff: isStaff, supportBadge: badges.support, staffBadge: badges.staff, photo: user?.photoURL || "", on: { [page === "ticket" ? "support" : page]: true } });
-  fill($("#foot"), "layout#footer", {});
+  fill($("#nav"), "layout#nav", { authed: !!user, staff: isStaff, supportBadge: badges.support, staffBadge: badges.staff, photo: user?.photoURL || "", on: { [page === "ticket" ? "support" : page]: true } }, true);
+  fill($("#foot"), "layout#footer", {}, true);
 }
 const loadBanner = async () => {
-  try { const x = await getDoc(doc(db, "config", "banner")), d = x.exists() ? x.data() : null; fill($("#banner"), "layout#banner", { text: d && d.on ? d.text : "" }); } catch {}
+  try { const x = await getDoc(doc(db, "config", "banner")), d = x.exists() ? x.data() : null; fill($("#banner"), "layout#banner", { text: d && d.on ? d.text : "" }, true); } catch {}
 };
 
 // ---- Routing ----
