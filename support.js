@@ -71,6 +71,7 @@ export function mountSupport(ctx) {
       const mine = t.uid === me().uid, sv = ctx.isStaff && !mine, first = (t.name || "").split(" ")[0] || "there";
       const keep = $("#rep") ? $("#rep").value : "", nk = $("#nt") ? $("#nt").value : "", foc = document.activeElement && document.activeElement.id;
       const ML = REPLIES.map(r => ({ title: r[0], text: r[1] })).concat(macros);
+      const emailOn = async () => { try { const e = await getDoc(doc(db, "config", "email")); return e.exists() && !!e.data().on; } catch (e) { return false; } };
       const setStatus = s => updateDoc(doc(db, "tickets", id), { status: s, updatedAt: stamp() }).then(() => { if (sv) audit("set " + code(id) + " to", s); }).catch(() => toast("Couldn't update the ticket."));
       const ok = await show("ticket", {
         back: "#/" + (sv ? "staff/tickets" : "support"), subject: t.subject, priority: t.priority, status: t.status, statusLabel: LABEL[sv ? "staff" : "user"][t.status] || t.status,
@@ -97,6 +98,10 @@ export function mountSupport(ctx) {
           if (sv && !t.assignee) u.assignee = { uid: me().uid, name: me().displayName || me().email || "Staff" };
           await updateDoc(doc(db, "tickets", id), u);
           if (sv && close) audit("closed", code(id));
+          if (sv && t.email && await emailOn()) {
+            const link = `${location.origin}${location.pathname}#/ticket/${id}`, safe = text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])).replace(/\n/g, "<br>");
+            addDoc(collection(db, "mail"), { to: [t.email], message: { subject: `Re: ${t.subject} [${code(id)}]`, text: `${text}\n\nView or reply to your ticket: ${link}`, html: `<p>${safe}</p><p><a href="${link}">View or reply to your ticket</a></p>` } }).catch(() => {});
+          }
         } catch (e) { toast("Couldn't send your reply."); $("#go").disabled = false; }
       };
       $("#go").onclick = () => send(false);
@@ -131,9 +136,9 @@ export function mountSupport(ctx) {
   async function staff(tab) {
     if (!ctx.isStaff) { await show("staff#denied"); return; }
     tab = tab || "overview";
-    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"]].concat(ctx.isAdmin ? [["settings", "Settings"]] : []);
+    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"], ["errors", "Errors"]].concat(ctx.isAdmin ? [["settings", "Settings"]] : []);
     const tabs = list.map(([k, label]) => ({ k, label, on: k === tab }));
-    await ({ overview, tickets, members, library, replies, settings }[tab] || overview)(tabs);
+    await ({ overview, tickets, members, library, replies, errors, settings }[tab] || overview)(tabs);
   }
 
   async function overview(tabs) {
@@ -142,7 +147,7 @@ export function mountSupport(ctx) {
     const draw = () => {
       const open = all.filter(t => t.status === "open"), pend = all.filter(t => t.status === "pending");
       const wk = all.filter(t => t.status === "closed" && secs(t.updatedAt) * 1000 > Date.now() - 7 * DAYMS), rated = all.filter(t => t.rating), yes = rated.filter(t => t.rating === "yes").length;
-      const cards = [[open.length, "Need a reply"], [open.filter(t => !t.assignee).length, "Unassigned"], [pend.length, "Waiting on customer"], [wk.length, "Closed this week"], [rated.length ? Math.round(yes / rated.length * 100) + "%" : "–", "Found helpful"], [mem ? mem.total : "…", "Members"], [mem ? mem.reserve : "…", "On Reserve"]].map(([n, label]) => ({ n, label }));
+      const cards = [[open.length, "Need a reply"], [open.filter(t => !t.assignee).length, "Unassigned"], [pend.length, "Waiting on customer"], [wk.length, "Closed this week"], [rated.length ? Math.round(yes / rated.length * 100) + "%" : "–", "Found helpful"], [mem ? mem.total : "…", "Members"], [mem ? mem.fresh : "…", "New this week"], [mem ? mem.reserve : "…", "On Reserve"]].map(([n, label]) => ({ n, label }));
       fill($("#kpi"), "staff-overview#kpi", { cards });
       fill($("#na"), "staff-overview#na", { list: rows(open.slice().sort(cmp).slice(0, 6), true) });
     };
@@ -153,7 +158,7 @@ export function mountSupport(ctx) {
       }, () => { fill($("#ac"), "staff-overview#activity-error", {}); })
     ];
     ctx.setUnsub(() => off.forEach(f => f()));
-    Promise.all([getDocs(collection(db, "profiles")), getDocs(collection(db, "reserve"))]).then(([p, r]) => { mem = { total: p.size, reserve: r.docs.filter(d => !(d.data().until > 0 && d.data().until < Date.now())).length }; draw(); }).catch(() => {});
+    Promise.all([getDocs(collection(db, "profiles")), getDocs(collection(db, "reserve"))]).then(([p, r]) => { mem = { total: p.size, fresh: p.docs.filter(d => secs(d.data().since) * 1000 > Date.now() - 7 * DAYMS).length, reserve: r.docs.filter(d => !(d.data().until > 0 && d.data().until < Date.now())).length }; draw(); }).catch(() => {});
   }
 
   async function tickets(tabs) {
@@ -233,16 +238,29 @@ export function mountSupport(ctx) {
     ctx.setUnsub(onSnapshot(collection(db, "macros"), s => { items = s.docs.map(d => ({ id: d.id, ...d.data() })); draw(); }, () => { fill($("#rl"), "staff-replies#error", {}); }));
   }
 
+  async function errors(tabs) {
+    if (!(await show("staff-errors", { tabs }))) return;
+    let docs = [];
+    const draw = () => {
+      const g = {}; docs.forEach(d => { (g[d.message] = g[d.message] || { message: d.message, count: 0, last: d.at, where: d.url, stack: d.stack }).count++; });
+      fill($("#el"), "staff-errors#list", { groups: Object.values(g).sort((a, b) => b.count - a.count).map(x => ({ message: x.message, count: x.count, where: x.where || "", ago: ago(x.last), stack: x.stack || "(no details)" })) });
+    };
+    $("#clr").onclick = async () => { if (!docs.length || !confirm("Clear all reported errors?")) return; await Promise.all(docs.map(d => deleteDoc(doc(db, "errors", d.id)))); };
+    ctx.setUnsub(onSnapshot(query(collection(db, "errors"), orderBy("at", "desc"), limit(60)), s => { docs = s.docs.map(d => ({ id: d.id, ...d.data() })); draw(); }, () => { fill($("#el"), "staff-errors#error", {}); }));
+  }
+
   async function settings(tabs) {
     if (!ctx.isAdmin) return overview(tabs);
     if (!(await show("staff-settings", { tabs }))) return;
     getDoc(doc(db, "config", "banner")).then(s => { if (s.exists()) { $("#bt").value = s.data().text || ""; $("#bo").checked = !!s.data().on; } }).catch(() => {});
+    getDoc(doc(db, "config", "email")).then(s => { if (s.exists()) $("#eo").checked = !!s.data().on; }).catch(() => {});
+    $("#es").onclick = () => setDoc(doc(db, "config", "email"), { on: $("#eo").checked, by: me().uid, at: stamp() }).then(() => { audit("turned reply emails", $("#eo").checked ? "on" : "off"); toast("Saved"); }).catch(() => toast("Couldn't save. Check your Firestore rules."));
     $("#bs").onclick = () => setDoc(doc(db, "config", "banner"), { text: $("#bt").value.trim(), on: $("#bo").checked, by: me().uid, at: stamp() }).then(() => { audit("updated", "the announcement banner"); ctx.refreshBanner(); toast("Banner published"); }).catch(() => toast("Couldn't publish. Check your Firestore rules."));
   }
 
   // ---------- Garde Reserve page ----------
   async function reserve() {
-    if (!(await show("reserve", { signedOut: !me(), member: ctx.isReserve, limit: ctx.FREE_LIMIT }))) return;
+    if (!(await show("reserve", { signedOut: !me(), member: ctx.isReserve, limit: ctx.FREE_LIMIT, smart: ctx.smart }))) return;
     if ($("#req")) $("#req").onclick = async e => { e.target.disabled = true; try { location.hash = "#/ticket/" + await createTicket("Garde Reserve access request", "Garde Reserve", "I'd like to request access to Garde Reserve."); } catch (err) { e.target.disabled = false; toast("Couldn't send your request."); } };
   }
 

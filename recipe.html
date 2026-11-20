@@ -1,10 +1,19 @@
 <div class="detail">
-  {{#if image}}<img class="cover" src="{{image}}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">{{/if}}
+  <div id="coverbox" class="wide"></div>
   <div class="hdr"><div><h2>{{title}}</h2><p class="meta">{{meta}}{{#if source}} · <a href="{{source}}" target="_blank" rel="noopener noreferrer">Original</a>{{/if}}</p></div>
-    <div class="row"><button class="btn" id="fv">{{#if favorite}}★ Favorited{{else}}☆ Favorite{{/if}}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/{{id}}">Edit</a><button class="btn danger" id="del">Delete</button></div></div>
-  <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>{{#if base}}<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>{{/if}}</div><ul id="il"></ul></div>
-  <div class="panel glass"><h3>Steps</h3><ol>{{#each steps}}<li>{{.}}</li>{{/each}}</ol>{{#if notes}}<h3 style="margin-top:28px">Notes</h3><p class="meta notes">{{notes}}</p>{{/if}}</div>
+    <div class="row noprint"><a class="btn main" href="#/cook/{{id}}">Cook</a><button class="btn" id="fv">{{#if favorite}}★ Favorited{{else}}☆ Favorite{{/if}}</button><button class="btn" id="pn"></button><a class="btn" href="#/edit/{{id}}">Edit</a><button class="btn" id="sh">Share</button><button class="btn" id="pr">Print</button><button class="btn danger" id="del">Delete</button></div></div>
+  <div class="wide panel glass track noprint"><div class="row"><button class="btn" id="made">I made this</button><span class="meta" id="madeinfo">{{madeInfo}}</span><span class="stars" role="group" aria-label="Your rating" style="margin-left:auto">{{#each stars}}<button class="star{{#if on}} on{{/if}}" data-star="{{n}}" aria-label="{{n}} star{{#if plural}}s{{/if}}">★</button>{{/each}}</span></div></div>
+  <div id="sharebox" class="wide"></div>
+  <div class="panel glass"><div class="row" style="justify-content:space-between"><h3>Ingredients</h3>
+    <span class="row noprint" style="gap:10px">{{#if base}}<span class="step"><button id="mn" aria-label="Fewer servings">−</button><b id="sv"></b><small>servings</small><button id="pl" aria-label="More servings">+</button></span>{{/if}}
+    <span class="seg" role="group" aria-label="Units">{{#each units}}<button data-u="{{v}}" aria-pressed="{{on}}">{{label}}</button>{{/each}}</span></span></div><ul id="il"></ul></div>
+  <div class="panel glass"><h3>Steps</h3><ol id="stl">{{#each steps}}<li>{{.}}</li>{{/each}}</ol>{{#if notes}}<h3 style="margin-top:28px">Notes</h3><p class="meta notes">{{notes}}</p>{{/if}}</div>
+  <div id="scanbox" class="wide"></div>
 </div>
 
 <template id="notfound"><div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div></template>
 <template id="ingredients">{{#each items}}<li>{{.}}</li>{{/each}}</template>
+<template id="steps">{{#each items}}<li>{{.}}</li>{{/each}}</template>
+<template id="cover"><img class="cover zoomable" src="{{src}}" alt="Photo of {{title}}" referrerpolicy="no-referrer" onerror="this.remove()"></template>
+<template id="scan"><div class="panel glass"><h3>Original card</h3><p class="meta">The photo you scanned. Click it to enlarge.</p><img class="scanthumb zoomable" src="{{src}}" alt="Photo of the original recipe card"></div></template>
+<template id="sharebox">{{#if shared}}<div class="panel glass noprint"><h3>Shared</h3><p class="meta">Anyone with this link can view this recipe. They can't edit yours.</p><div class="row nowrap" style="margin-top:14px"><input id="slink" value="{{link}}" readonly aria-label="Share link"><button class="btn main" id="scopy">Copy link</button></div><div class="row" style="margin-top:14px"><button class="btn" id="supd">Update shared copy</button><button class="btn danger" id="sstop">Stop sharing</button></div></div>{{/if}}</template>

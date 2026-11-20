@@ -4,10 +4,11 @@
 
 <template id="shell"><h1 class="pg">Sous</h1><p class="lead">Plan your week. Every recipe you add is saved to your recipes and its ingredients go straight into your Pantry.</p>
 <div class="bar"><a class="chip" href="#/sous" data-tab="plan" aria-pressed="{{planOn}}">Plan</a><a class="chip" href="#/sous" data-tab="lib" aria-pressed="{{libOn}}">Library</a>
-  <span class="meta" style="margin-left:auto">{{summary}}</span><a class="btn" href="#/pantry">Open Pantry</a></div>
+  <span class="meta" style="margin-left:auto">{{summary}}</span><a class="btn" href="#/fridge">What can I cook?</a><a class="btn" href="#/pantry">Open Pantry</a></div>
 <div id="body"></div></template>
 
 <template id="plan"><div class="bar" style="margin-top:0"><button class="btn" id="pw" aria-label="Previous week">‹</button><b>{{label}}</b><button class="btn" id="nw" aria-label="Next week">›</button><button class="btn" id="tw">This week</button><span style="margin-left:auto"></span><button class="btn" id="cp">Copy last week</button><button class="btn danger" id="cl">Clear week</button></div>
+<div class="bar" style="margin-top:0"><span class="meta">Templates</span><button class="btn" id="tsave">Save this week as a template</button>{{#if templates}}<select id="tuse" style="width:auto" aria-label="Use a template"><option value="">Use a template…</option>{{#each templates}}<option value="{{id}}">{{name}}</option>{{/each}}</select><button class="btn danger" id="tdel" hidden>Delete template</button>{{/if}}</div>
 <div class="week">{{#each days}}<div class="glass day{{#if today}} today{{/if}}"><div class="dh"><b>{{name}}</b><small>{{date}}</small></div>
 {{#each meals}}<div class="meal"><span class="aisle">{{label}}</span>{{#each entries}}<div class="pe"><a href="#/recipe/{{rid}}">{{title}}</a><span class="step" data-k="{{key}}" data-n="{{n}}"><button data-d="-1" aria-label="Fewer servings">−</button><b>{{servings}}</b><button data-d="1" aria-label="More servings">+</button><button data-x aria-label="Remove">×</button></span></div>{{/each}}<button class="addb" data-add="{{key}}">+ Add</button></div>{{/each}}</div>{{/each}}</div></template>
 

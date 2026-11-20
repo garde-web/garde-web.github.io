@@ -73,3 +73,36 @@ export function buildList(recipes, serv) {
   return out;
 }
 export const itemText = e => !e.counted ? e.name : [fmt(e.q), unitLabel(e.unit, e.q), !e.unit && e.q > 1 ? pluralName(e.name) : e.name].filter(Boolean).join(" ");
+
+// ---- Unit conversion (US <-> metric) for the recipe page and cook mode ----
+const rnd = v => v >= 20 ? Math.round(v / 5) * 5 : Math.round(v);
+const dec = n => String(Math.round(n * 10) / 10).replace(/\.0$/, "");
+function target(unit, top, system) {
+  if (system === "metric") {
+    const f = { cup: 240, tbsp: 15, tsp: 5, oz: 28.35, lb: 453.6 }[unit]; if (!f) return null;
+    const base = unit === "oz" || unit === "lb" ? "g" : "ml", v = top * f;
+    return v >= 1000 ? [base === "g" ? "kg" : "l", f / 1000] : [base, f];
+  }
+  if (unit === "g") return top >= 453.6 ? ["lb", 1 / 453.6] : ["oz", 1 / 28.35];
+  if (unit === "kg") return ["lb", 2.2046];
+  if (unit === "ml") return top >= 240 ? ["cup", 1 / 240] : top >= 15 ? ["tbsp", 1 / 15] : ["tsp", 1 / 5];
+  if (unit === "l") return ["cup", 4.2268];
+  return null;
+}
+export function convertLine(line, system) {
+  if (system !== "metric" && system !== "imperial") return line;
+  const p = parseIng(line); if (!p) return line;
+  const t = target(p.unit, p.q2 ?? p.q1, system); if (!t) return line;
+  const f = q => { const v = q * t[1]; return system === "metric" ? (t[0] === "kg" || t[0] === "l" ? Math.round(v * 10) / 10 : rnd(v)) : v; };
+  const show = system === "metric" ? dec : fmt, a = f(p.q1), b = p.q2 != null ? f(p.q2) : null;
+  return `${show(a)}${b != null ? "–" + show(b) : ""} ${unitLabel(t[0], b ?? a)} ${p.name}`;
+}
+export function convertText(text, system) {
+  if (system !== "metric" && system !== "imperial") return text;
+  return String(text).replace(/(\d{2,3})\s*(?:°|º|degrees)\s*([FC])\b/gi, (m, n, u) => {
+    u = u.toUpperCase(); n = +n;
+    if (system === "metric" && u === "F") return `${Math.round((n - 32) * 5 / 9 / 5) * 5}°C`;
+    if (system === "imperial" && u === "C") return `${Math.round((n * 9 / 5 + 32) / 5) * 5}°F`;
+    return m;
+  });
+}

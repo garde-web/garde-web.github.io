@@ -1,11 +1,14 @@
 // Garde: boot, sign-in, routing and the recipe screens. Page markup lives in the .html files; styling in style.css.
 import * as fb from "./firebase-config.js";
 import { view, fill, esc, faqItems } from "./tpl.js";
-import { scaleLine, buildList, itemText, ORDER } from "./scale.js";
+import { scaleLine, convertLine, convertText, buildList, itemText, ORDER } from "./scale.js";
+import { resizeImage, thumbOf } from "./photos.js";
+import { mountCook } from "./cook.js";
+import { mountExtras } from "./extras.js";
 import { extractRecipe, bookmarklet } from "./extract.js";
 import { mountSupport } from "./support.js";
 import { mountSous, weekEntries } from "./sous.js";
-import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onAuthStateChanged, signInWithPopup, signOut, reauthenticateWithPopup, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const { auth, db, provider } = fb, IMPORT_PROXY = fb.IMPORT_PROXY || ""; // IMPORT_PROXY is optional in firebase-config.js
 
@@ -26,7 +29,7 @@ onAuthStateChanged(auth, async u => {
   stopReserve?.(); stopBadges?.(); stopReserve = stopBadges = null;
   user = u; isStaff = isAdmin = isReserve = false; recipes = null; badges.support = badges.staff = 0;
   if (u) {
-    setDoc(doc(db, "profiles", u.uid), { name: u.displayName || "", email: u.email || "", photo: u.photoURL || "", lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+    getDoc(doc(db, "profiles", u.uid)).then(p => setDoc(doc(db, "profiles", u.uid), { name: u.displayName || "", email: u.email || "", photo: u.photoURL || "", lastSeen: serverTimestamp(), ...(p.exists() ? {} : { since: serverTimestamp() }) }, { merge: true })).catch(() => {});
     const [a, b] = await Promise.all([getDoc(doc(db, "staff", u.uid)).catch(() => null), getDoc(doc(db, "reserve", u.uid)).catch(() => null)]);
     isStaff = !!a?.exists(); isAdmin = isStaff && a.data().role === "admin"; isReserve = !!b && reserveOn(b);
     stopReserve = onSnapshot(doc(db, "reserve", u.uid), x => { const v = reserveOn(x); if (v !== isReserve) { isReserve = v; if (v) toast("Garde Reserve is now active"); route(); } }, () => {});
@@ -59,10 +62,10 @@ const loadBanner = async () => {
 async function route() {
   if (!ready) return;
   nav();
-  unsub?.(); unsub = null;
+  unsub?.(); unsub = null; document.body.classList.remove("cooking");
   const [, page, id] = (location.hash || "#/").split("/");
   if (page === "import") { try { sessionStorage.setItem("garde.seed", id || ""); } catch {} location.hash = user ? "#/add" : "#/login"; return; }
-  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "pantry", "shopping", "settings", "ticket", "staff", "sous"];
+  const guarded = ["dashboard", "add", "recipe", "edit", "collections", "pantry", "shopping", "settings", "ticket", "staff", "sous", "cook", "fridge"];
   if (guarded.includes(page) && !user) { location.hash = "#/login"; return; }
   if (page === "login" && user) { location.hash = "#/dashboard"; return; }
   const pages = {
@@ -70,6 +73,7 @@ async function route() {
     login: loginView, dashboard, add: () => form(), recipe: () => detail(id), edit: () => form(id),
     features: () => show("features"), about: () => show("about"),
     collections, pantry, shopping: pantry, settings,
+    cook: () => C.cook(id), s: () => X.shared(id), fridge: () => X.fridge(), privacy: () => show("privacy"), terms: () => show("terms"),
     support: () => P.support(), ticket: () => P.ticket(id), staff: () => P.staff(id), reserve: () => P.reserve(), sous: () => S.sous()
   };
   await (pages[page] || pages[""])();
@@ -85,39 +89,83 @@ async function load() {
 }
 
 // ---- My recipes ----
+const SORTS = { new: () => 0, cooked: (a, b) => (b.cooked || 0) - (a.cooked || 0), recent: (a, b) => (b.lastCooked || 0) - (a.lastCooked || 0), rating: (a, b) => (b.rating || 0) - (a.rating || 0), az: (a, b) => (a.title || "").localeCompare(b.title || "") };
 async function dashboard() {
   await show("dashboard#loading");
   let all;
   try { all = await load(); } catch (e) { await show("dashboard#error"); return; }
-  let q = "", fav = false;
+  let q = "", fav = false, sort = lsGet("garde.sort", "new");
   if (!(await show("dashboard"))) return;
+  $("#sort").value = SORTS[sort] ? sort : "new";
   const draw = () => {
-    const f = all.filter(r => (!fav || r.favorite) && (`${r.title} ${(r.tags || []).join(" ")} ${(r.ingredients || []).join(" ")}`).toLowerCase().includes(q));
+    const f = all.filter(r => (!fav || r.favorite) && (`${r.title} ${(r.tags || []).join(" ")} ${(r.ingredients || []).join(" ")}`).toLowerCase().includes(q)).sort(SORTS[sort] || SORTS.new);
     fill($("#list"), "dashboard#list", { none: !all.length, nomatch: all.length > 0 && !f.length,
-      cards: f.map(r => ({ id: r.id, letter: (r.title || "?").trim()[0] || "?", image: r.image, favorite: r.favorite, title: r.title, meta: [r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet" })) });
+      cards: f.map(r => ({ id: r.id, letter: (r.title || "?").trim()[0] || "?", image: r.thumb || r.image, favorite: r.favorite, title: r.title,
+        meta: [r.time, r.servings && r.servings + " servings"].filter(Boolean).join(" · ") || "No details yet",
+        track: [r.rating ? "★".repeat(r.rating) : "", r.cooked ? `Made ${r.cooked}×` : ""].filter(Boolean).join(" · ") })) });
   };
   $("#q").oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+  $("#sort").onchange = e => { sort = e.target.value; lsSet("garde.sort", sort); draw(); };
   $("#fav").onclick = e => { fav = !fav; e.target.setAttribute("aria-pressed", fav); draw(); };
   draw();
 }
 
 // ---- One recipe ----
 async function detail(id) {
-  const s = await getDoc(doc(db, "users", user.uid, "recipes", id));
+  const ref = doc(db, "users", user.uid, "recipes", id), s = await getDoc(ref);
   if (!s.exists()) { await show("recipe#notfound"); return; }
   const r = { id, ...s.data() }, base = parseInt(r.servings) || 0;
-  const ok = await show("recipe", { id, title: r.title, image: r.image, favorite: r.favorite, source: r.source, base, steps: r.steps || [], notes: r.notes,
+  let units = lsGet("garde.units", "original"), cur = lsGet("garde.serv", {})[id] || base, photoData = "";
+  const unitList = () => [["original", "Original"], ["metric", "Metric"], ["imperial", "US"]].map(([v, label]) => ({ v, label, on: v === units }));
+  const madeInfo = () => r.cooked ? `Made ${r.cooked} time${r.cooked === 1 ? "" : "s"}${r.lastCooked ? " · last on " + new Date(r.lastCooked).toLocaleDateString() : ""}` : "You haven't marked this as made yet.";
+  const ok = await show("recipe", { id, title: r.title, favorite: r.favorite, source: r.source, base, notes: r.notes, units: unitList(), madeInfo: madeInfo(),
+    stars: [1, 2, 3, 4, 5].map(n => ({ n, on: n <= (r.rating || 0), plural: n > 1 })), steps: (r.steps || []).map(x => convertText(x, units)),
     meta: [r.time, r.servings && r.servings + " servings", (r.tags || []).join(", ")].filter(Boolean).join(" · ") });
   if (!ok) return;
-  $("#fv").onclick = async () => { await updateDoc(doc(db, "users", user.uid, "recipes", id), { favorite: !r.favorite }); recipes = null; detail(id); };
-  $("#del").onclick = async () => { if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return; await deleteDoc(doc(db, "users", user.uid, "recipes", id)); recipes = null; toast("Recipe deleted"); location.hash = "#/dashboard"; };
-  let cur = lsGet("garde.serv", {})[id] || base;
-  const showIng = () => { const k = base ? cur / base : 1; fill($("#il"), "recipe#ingredients", { items: (r.ingredients || []).map(i => scaleLine(i, k)) }); if (base) $("#sv").textContent = cur; };
+  const showIng = () => { const k = base ? cur / base : 1; fill($("#il"), "recipe#ingredients", { items: (r.ingredients || []).map(i => convertLine(scaleLine(i, k), units)) }); if (base) $("#sv").textContent = cur; };
+  const showSteps = () => fill($("#stl"), "recipe#steps", { items: (r.steps || []).map(x => convertText(x, units)) });
+  $("#fv").onclick = async () => { await updateDoc(ref, { favorite: !r.favorite }); recipes = null; detail(id); };
+  $("#pr").onclick = () => window.print();
+  $("#del").onclick = async () => {
+    if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return;
+    await deleteDoc(ref); deleteDoc(doc(db, "users", user.uid, "photos", id)).catch(() => {}); if (r.sharedId) deleteDoc(doc(db, "shared", r.sharedId)).catch(() => {});
+    recipes = null; toast("Recipe deleted"); location.hash = "#/dashboard";
+  };
   const stepTo = d => { cur = Math.max(1, Math.min(99, cur + d)); const m = lsGet("garde.serv", {}); m[id] = cur; lsSet("garde.serv", m); showIng(); };
   if (base) { $("#mn").onclick = () => stepTo(-1); $("#pl").onclick = () => stepTo(1); }
+  app.querySelectorAll("[data-u]").forEach(b => b.onclick = () => { units = b.dataset.u; lsSet("garde.units", units); app.querySelectorAll("[data-u]").forEach(x => x.setAttribute("aria-pressed", x === b)); showIng(); showSteps(); });
   showIng();
   const pk = () => lsGet("garde.pick", []), paint = () => { $("#pn").textContent = pk().includes(id) ? "✓ In Pantry" : "Add to Pantry"; };
   paint(); $("#pn").onclick = () => { lsSet("garde.pick", pk().includes(id) ? pk().filter(x => x !== id) : [...pk(), id]); paint(); };
+  // Made it + rating
+  $("#made").onclick = async () => { r.cooked = (r.cooked || 0) + 1; r.lastCooked = Date.now(); await updateDoc(ref, { cooked: r.cooked, lastCooked: r.lastCooked }).catch(() => toast("Couldn't save that.")); recipes = null; $("#madeinfo").textContent = madeInfo(); toast("Nice! Logged."); };
+  app.querySelectorAll("[data-star]").forEach(b => b.onclick = async () => {
+    r.rating = +b.dataset.star === r.rating ? 0 : +b.dataset.star; await updateDoc(ref, { rating: r.rating }).catch(() => toast("Couldn't save that.")); recipes = null;
+    app.querySelectorAll("[data-star]").forEach(x => x.classList.toggle("on", +x.dataset.star <= r.rating));
+  });
+  // Sharing
+  const link = () => location.origin + location.pathname + "#/s/" + r.sharedId;
+  const payload = () => ({ uid: user.uid, by: user.displayName || "", title: r.title, time: r.time || "", servings: r.servings || "", ingredients: r.ingredients || [], steps: r.steps || [], tags: r.tags || [], notes: r.notes || "", image: r.image || "", photo: photoData, createdAt: serverTimestamp() });
+  const drawShare = async () => {
+    if (!(await fill($("#sharebox"), "recipe#sharebox", { shared: !!r.sharedId, link: r.sharedId ? link() : "" })) || !r.sharedId) return;
+    $("#scopy").onclick = async () => { try { await navigator.clipboard.writeText(link()); toast("Link copied"); } catch { $("#slink").select(); toast("Press Ctrl+C to copy"); } };
+    $("#supd").onclick = () => setDoc(doc(db, "shared", r.sharedId), payload()).then(() => toast("Shared copy updated")).catch(() => toast("Couldn't update. Check your Firestore rules."));
+    $("#sstop").onclick = async () => { try { await deleteDoc(doc(db, "shared", r.sharedId)); await updateDoc(ref, { sharedId: "" }); r.sharedId = ""; recipes = null; toast("No longer shared"); drawShare(); } catch { toast("Couldn't stop sharing. Try again."); } };
+  };
+  $("#sh").onclick = async () => {
+    if (!r.sharedId) {
+      const sid = Array.from(crypto.getRandomValues(new Uint8Array(9)), b => (b % 36).toString(36)).join("");
+      try { await setDoc(doc(db, "shared", sid), payload()); await updateDoc(ref, { sharedId: sid }); r.sharedId = sid; recipes = null; } catch { return toast("Couldn't share. Check your Firestore rules."); }
+    }
+    drawShare();
+  };
+  if (r.sharedId) drawShare();
+  // Photos (stored separately so the recipe list stays fast)
+  getDoc(doc(db, "users", user.uid, "photos", id)).then(ps => {
+    const d = ps.exists() ? ps.data() : {}; photoData = d.data || "";
+    const src = photoData || r.image; if (src) fill($("#coverbox"), "recipe#cover", { src, title: r.title });
+    if (d.scan) fill($("#scanbox"), "recipe#scan", { src: d.scan });
+  }).catch(() => { if (r.image) fill($("#coverbox"), "recipe#cover", { src: r.image, title: r.title }); });
 }
 
 // ---- Import helpers ----
@@ -204,17 +252,32 @@ async function prep(file) {
   cx.putImageData(d, 0, 0); return cv;
 }
 
+// Smart scan (Garde Reserve): the photo goes to our Cloudflare helper, which has Google Gemini read it. See worker.js.
+async function smartScan(file) {
+  const image = (await resizeImage(file, 1600, 0.8)).split(",")[1], token = await auth.currentUser.getIdToken();
+  const r = await fetch(IMPORT_PROXY, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify({ image }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Smart scan failed");
+  return { title: j.title || "", servings: j.servings || "", time: j.time || "", ingredients: j.ingredients || [], steps: j.steps || [], tags: j.tags || [] };
+}
+
 function form(id) {
   const base = { title: "", source: "", time: "", servings: "", image: "", ingredients: [], steps: [], tags: [], notes: "" };
   const fill = (a, b) => ({ ...a, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v && (!Array.isArray(v) || v.length))) });
   const seed = id ? null : takeSeed();
   if (!id) warm().catch(() => {});
+  // Photos live outside render() so they survive the page being redrawn after an import
+  const photo = { thumb: "", full: "", scan: "", keepScan: true };
   const render = async (r, msg = "") => {
-    const ok = await show("add", { editing: !!id, msg, title: r.title, time: r.time, servings: r.servings, ingredients: r.ingredients.join("\n"), steps: r.steps.join("\n"), tags: r.tags.join(", "), image: r.image, notes: r.notes });
+    const ok = await show("add", { editing: !!id, msg, title: r.title, time: r.time, servings: r.servings, ingredients: r.ingredients.join("\n"), steps: r.steps.join("\n"), tags: r.tags.join(", "), image: r.image, notes: r.notes,
+      smart: isReserve && !!IMPORT_PROXY, preview: photo.full || photo.thumb, hasScan: !!photo.scan, keepScan: photo.keepScan });
     if (!ok) return;
     const st = m => { const e = $("#st"); if (e) e.textContent = m; };
     const busy = (on, label, p) => { const b = $("#prog"); if (!b) return; b.hidden = !on; $("#pt").textContent = label || ""; b.classList.toggle("ind", p == null); b.querySelector("i").style.width = p == null ? "40%" : Math.round(p * 100) + "%"; };
     const cur = () => ({ title: $("#title").value, source: r.source, time: $("#time").value, servings: $("#serv").value, image: $("#img").value, ingredients: lines($("#ing").value), steps: lines($("#stp").value), tags: $("#tags").value.split(",").map(t => t.trim()).filter(Boolean), notes: $("#notes").value });
+    $("#photo").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { photo.full = await resizeImage(f, 900, 0.75); photo.thumb = await thumbOf(f); render(cur(), "Photo added."); } catch { st("Couldn't read that image. Try a JPG or PNG."); } };
+    if ($("#photox")) $("#photox").onclick = () => { photo.full = ""; photo.thumb = ""; render(cur()); };
+    if ($("#keepscan")) $("#keepscan").onchange = e => { photo.keepScan = e.target.checked; };
     if (!id) {
       const doImport = async u => {
         u = u.trim(); if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(u)) u = "https://" + u;
@@ -232,6 +295,11 @@ function form(id) {
         if (!f || !f.type.startsWith("image/")) return st("Choose an image file (JPG or PNG).");
         st(""); busy(true, "Preparing photo…", .03);
         try {
+          try { photo.scan = await resizeImage(f, 1200, 0.65); photo.keepScan = true; } catch (e) { photo.scan = ""; }
+          if (isReserve && IMPORT_PROXY) {
+            try { busy(true, "Reading with smart scan…"); const p = await smartScan(f); busy(false); render(fill(cur(), p), "Smart scan finished. Check the details, then save."); return; }
+            catch (e) { console.warn("Smart scan unavailable, using basic scan:", e.message); }
+          }
           const cv = await prep(f);
           onProg = m => m.status === "recognizing text" ? busy(true, "Reading text…", .1 + m.progress * .9) : busy(true, "Getting the reader ready (first time only)…");
           const { data } = await (await warm()).recognize(cv);
@@ -251,15 +319,29 @@ function form(id) {
     }
     $("#save").onclick = async () => {
       const d = cur(); if (!d.title.trim()) { toast("Add a title first"); return; }
+      d.thumb = photo.thumb || "";
+      let scan = photo.keepScan ? photo.scan : "";
+      if ((photo.full || "").length + (scan || "").length > 900000) { scan = ""; toast("The scanned card was too large to keep, so only the recipe was saved."); }
       try {
+        let rid = id;
         if (id) await updateDoc(doc(db, "users", user.uid, "recipes", id), d);
-        else { if (!isReserve && (await load()).length >= FREE_LIMIT) { toast(`Free accounts hold ${FREE_LIMIT} recipes. Garde Reserve removes the limit.`); return; } await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() }); }
+        else {
+          if (!isReserve && (await load()).length >= FREE_LIMIT) { toast(`Free accounts hold ${FREE_LIMIT} recipes. Garde Reserve removes the limit.`); return; }
+          rid = (await addDoc(col(), { ...d, favorite: false, createdAt: serverTimestamp() })).id;
+        }
+        const pref = doc(db, "users", user.uid, "photos", rid);
+        if (photo.full || scan) await setDoc(pref, { data: photo.full || "", scan: scan || "" }); else if (id) await deleteDoc(pref).catch(() => {});
         recipes = null; toast("Recipe saved"); location.hash = "#/dashboard";
       } catch { toast("Couldn't save. Check your connection and try again."); }
     };
   };
   if (!id) { let host = ""; try { host = new URL(seed.source).hostname.replace(/^www\./, ""); } catch {} return render(seed ? fill(base, seed) : base, seed ? "Imported" + (host ? " from " + host : "") + ". Check the details, then save." : ""); }
-  getDoc(doc(db, "users", user.uid, "recipes", id)).then(s => render({ ...base, ...s.data() }));
+  (async () => {
+    const [s, ps] = await Promise.all([getDoc(doc(db, "users", user.uid, "recipes", id)), getDoc(doc(db, "users", user.uid, "photos", id)).catch(() => null)]);
+    if (!s.exists()) { await show("recipe#notfound"); return; }
+    photo.thumb = s.data().thumb || ""; if (ps && ps.exists()) { photo.full = ps.data().data || ""; photo.scan = ps.data().scan || ""; }
+    render({ ...base, ...s.data() });
+  })();
 }
 
 // ---- Collections ----
@@ -287,16 +369,36 @@ async function pantry() {
     app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = c.dataset.i; done = c.checked ? [...done, i] : done.filter(x => x !== i); lsSet("garde.done", done); draw(); });
     app.querySelectorAll("[data-s] button").forEach(b => b.onclick = () => { const id = b.parentElement.dataset.s, r = all.find(x => x.id === id), base = parseInt(r.servings) || 1; serv[id] = Math.max(1, Math.min(99, (serv[id] || base) + +b.dataset.d)); lsSet("garde.serv", serv); draw(); });
     if ($("#clr")) $("#clr").onclick = () => { done = []; lsSet("garde.done", done); draw(); };
+    const text = ORDER.filter(a => groups[a]).map(a => a + "\n" + groups[a].map(e => "- " + itemText(e)).join("\n")).join("\n\n");
+    if ($("#cpl")) $("#cpl").onclick = async () => { try { await navigator.clipboard.writeText("Garde Pantry\n\n" + text); toast("List copied"); } catch { toast("Couldn't copy. Select the list and copy it by hand."); } };
+    if ($("#shl") && navigator.share) { $("#shl").hidden = false; $("#shl").onclick = () => navigator.share({ title: "Garde Pantry", text }).catch(() => {}); }
   };
   draw();
 }
 
 // ---- Settings ----
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+async function deleteAccount() {
+  if (prompt("This permanently deletes your account, recipes, photos, plans and shared links. Type DELETE to confirm.") !== "DELETE") return;
+  try {
+    await reauthenticateWithPopup(auth.currentUser, provider);
+    const uid = user.uid, wipe = async s => { await Promise.all(s.docs.map(d => deleteDoc(d.ref))); };
+    for (const sub of ["recipes", "photos", "plans", "templates"]) await wipe(await getDocs(collection(db, "users", uid, sub)));
+    await wipe(await getDocs(query(collection(db, "shared"), where("uid", "==", uid))));
+    await deleteDoc(doc(db, "profiles", uid)).catch(() => {});
+    await deleteUser(auth.currentUser);
+    try { Object.keys(localStorage).filter(k => k.startsWith("garde.")).forEach(k => localStorage.removeItem(k)); } catch {}
+    toast("Your account was deleted."); location.hash = "#/";
+  } catch (e) { toast("Couldn't delete the account. Sign in again and retry, or contact support."); }
+}
 async function settings() {
-  if (!(await show("settings", { name: user.displayName || "", email: user.email || "", uid: user.uid, reserve: isReserve, staff: isStaff }))) return;
+  if (!(await show("settings", { name: user.displayName || "", email: user.email || "", uid: user.uid, reserve: isReserve, staff: isStaff, canInstall: !!installEvt }))) return;
   $("#out2").onclick = () => signOut(auth).then(() => location.hash = "#/");
+  $("#delacct").onclick = deleteAccount;
+  if ($("#inst") && installEvt) $("#inst").onclick = async () => { installEvt.prompt(); try { await installEvt.userChoice; } catch {} installEvt = null; settings(); };
   $("#exp").onclick = async () => {
-    const all = (await load()).map(({ createdAt, ...r }) => r);
+    const all = (await load()).map(({ createdAt, thumb, ...r }) => r);
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: "application/json" })), download: "garde-recipes.json" });
     a.click(); toast("Export downloaded");
   };
@@ -305,8 +407,24 @@ async function settings() {
 // ---- Shared helpers and feature modules ----
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, refreshBanner: loadBanner,
+const stashSeed = o => { try { sessionStorage.setItem("garde.seed", btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")); } catch {} };
+const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, stashSeed, refreshBanner: loadBanner,
   invalidate: () => { recipes = null; }, setUnsub: f => { unsub = f; },
-  get user() { return user; }, get isStaff() { return isStaff; }, get isAdmin() { return isAdmin; }, get isReserve() { return isReserve; } };
-const P = mountSupport(ctx), S = mountSous(ctx);
+  get smart() { return !!IMPORT_PROXY; }, get user() { return user; }, get isStaff() { return isStaff; }, get isAdmin() { return isAdmin; }, get isReserve() { return isReserve; } };
+const P = mountSupport(ctx), S = mountSous(ctx), C = mountCook(ctx), X = mountExtras(ctx);
 loadBanner();
+
+// Tap a photo to enlarge it
+document.addEventListener("click", e => { const z = e.target.closest && e.target.closest(".zoomable"); if (z) z.classList.toggle("zoom"); });
+
+// Automatic problem reports for the Staff > Errors tab (signed-in users only, a handful per visit)
+let reported = 0;
+const report = (message, stack) => {
+  if (!user || reported >= 5 || !message) return; reported++;
+  addDoc(collection(db, "errors"), { at: serverTimestamp(), uid: user.uid, message: String(message).slice(0, 300), stack: String(stack || "").slice(0, 900), url: (location.hash || "#/").slice(0, 120), ua: navigator.userAgent.slice(0, 140) }).catch(() => {});
+};
+window.addEventListener("error", e => report(e.message, e.error && e.error.stack));
+window.addEventListener("unhandledrejection", e => report(e.reason && e.reason.message || e.reason, e.reason && e.reason.stack));
+
+// Lets Garde be installed on a phone or computer, and keeps the app shell available offline
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

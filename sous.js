@@ -1,5 +1,5 @@
 // Sous, the weekly meal planner (Garde Reserve): logic only. Markup is in sous.html.
-import { collection, doc, getDoc, getDocs, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { LIBRARY } from "./library.js";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -30,6 +30,8 @@ export function mountSous(ctx) {
     await show("sous#loading");
     let lib, mine;
     try { [lib, mine] = await Promise.all([loadLibrary(), ctx.load()]); } catch (e) { await show("sous#error"); return; }
+    let templates = [];
+    try { const ts = await getDocs(collection(db, "users", ctx.user.uid, "templates")); templates = ts.docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) {}
     let week = mondayOf(new Date()), plan = {}, tab = "plan", q = "", tag = "All", maxT = 0, src = "library", day = (new Date().getDay() + 6) % 7, meal = "dinner";
     const loadPlan = async () => { try { const s = await getDoc(planRef(ctx, keyOf(week))); plan = s.exists() ? s.data().slots || {} : {}; } catch (e) { plan = {}; } };
     const save = () => setDoc(planRef(ctx, keyOf(week)), { slots: plan, updatedAt: serverTimestamp() }).catch(() => toast("Couldn't save your plan. Check your connection."));
@@ -59,11 +61,25 @@ export function mountSous(ctx) {
       const days = DAYS.map((d, i) => { const date = addDays(week, i);
         return { name: FULL[i], date: date.toLocaleDateString([], { month: "short", day: "numeric" }), today: keyOf(date) === keyOf(new Date()),
           meals: MEALS.map(([m, ml]) => { const key = `${i}-${m}`; return { key, label: ml, entries: (plan[key] || []).map((e, n) => ({ n, key, rid: e.rid, title: e.title, servings: e.servings })) }; }) }; });
-      if (!(await fill($("#body"), "sous#plan", { label: label(), days }))) return;
+      if (!(await fill($("#body"), "sous#plan", { label: label(), days, templates: templates.map(x => ({ id: x.id, name: x.name })) }))) return;
       const move = n => async () => { week = addDays(week, n); await loadPlan(); draw(); };
       $("#pw").onclick = move(-7); $("#nw").onclick = move(7); $("#tw").onclick = async () => { week = mondayOf(new Date()); await loadPlan(); draw(); };
       $("#cl").onclick = () => { if (Object.keys(plan).length && confirm("Clear everything planned for this week?")) { plan = {}; save(); draw(); } };
       $("#cp").onclick = async () => { try { const s = await getDoc(planRef(ctx, keyOf(addDays(week, -7)))); const prev = s.exists() ? s.data().slots || {} : {}; if (!Object.keys(prev).length) return toast("Nothing was planned last week"); if (Object.keys(plan).length && !confirm("Replace this week's plan with last week's?")) return; plan = JSON.parse(JSON.stringify(prev)); await save(); draw(); } catch (e) { toast("Couldn't copy last week."); } };
+      $("#tsave").onclick = async () => {
+        if (!Object.keys(plan).length) return toast("Plan some meals first");
+        const name = (prompt("Name this template", "A typical week") || "").trim(); if (!name) return;
+        const id = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => (b % 36).toString(36)).join("");
+        try { await setDoc(doc(db, "users", ctx.user.uid, "templates", id), { name: name.slice(0, 60), slots: JSON.parse(JSON.stringify(plan)), createdAt: serverTimestamp() }); templates.push({ id, name, slots: JSON.parse(JSON.stringify(plan)) }); toast("Template saved"); draw(); } catch (e) { toast("Couldn't save the template."); }
+      };
+      if ($("#tuse")) {
+        $("#tuse").onchange = async e => {
+          const tpl = templates.find(x => x.id === e.target.value); $("#tdel").hidden = !tpl; if (!tpl) return;
+          if (Object.keys(plan).length && !confirm(`Replace this week's plan with "${tpl.name}"?`)) { e.target.value = ""; $("#tdel").hidden = true; return; }
+          plan = JSON.parse(JSON.stringify(tpl.slots || {})); await save(); draw();
+        };
+        $("#tdel").onclick = async () => { const tpl = templates.find(x => x.id === $("#tuse").value); if (!tpl || !confirm(`Delete the template "${tpl.name}"?`)) return; await deleteDoc(doc(db, "users", ctx.user.uid, "templates", tpl.id)).catch(() => {}); templates = templates.filter(x => x.id !== tpl.id); draw(); };
+      }
       app.querySelectorAll("[data-add]").forEach(b => b.onclick = () => { const [d, m] = b.dataset.add.split("-"); day = +d; meal = m; tab = "lib"; draw(); });
       app.querySelectorAll(".pe .step button").forEach(b => b.onclick = () => {
         const s = b.parentElement, k = s.dataset.k, n = +s.dataset.n;

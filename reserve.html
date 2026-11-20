@@ -1,13 +1,50 @@
-<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#17493a">$9.99 / MONTH</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up.</p>
+<section class="band" style="margin-top:0"><div><span class="badge" style="background:#fff;color:#17493a">$9.99 / MONTH</span><h1 style="margin:18px 0 .3em">Garde Reserve</h1><p class="lead" style="color:#bdbdbd">For people who cook a lot and want their recipe collection to keep up. Plan the week, never wonder what to make, and keep every recipe you find.</p>
   <div class="row" id="cta">
     {{#if signedOut}}<a class="btn main big" href="#/login">Sign in to request access</a>
     {{else}}{{#if member}}<span class="badge" style="background:#fff;color:#17493a">YOU'RE A RESERVE MEMBER</span><a class="btn" href="#/sous">Open Sous</a><a class="btn" href="#/support">Priority support</a>
     {{else}}<button class="btn main big" id="req">Request access</button>{{/if}}{{/if}}
   </div></div>
-  <ul><li>Unlimited recipes</li><li>Sous meal planner</li><li>Priority support</li><li>Reserve badge on your account</li></ul></section>
+  <ul><li>Unlimited recipes</li><li>Sous weekly meal planner</li><li>What can I cook?</li>{{#if smart}}<li>Smart photo scanning</li>{{/if}}<li>Priority support</li></ul></section>
+
+<section class="steps" style="padding-top:30px"><h2>What you get</h2>
 <div class="grid3">
-  <div class="glass"><h3>Unlimited recipes</h3><p>Free accounts hold {{limit}} recipes. Reserve has no limit.</p></div>
-  <div class="glass"><h3>Sous meal planner</h3><p>Plan your week from the recipe library or your own recipes. Every ingredient lands in your Pantry.</p></div>
-  <div class="glass"><h3>Priority support</h3><p>Your tickets are pinned to the top of our queue.</p></div>
-</div>
-<p class="meta" style="text-align:center;margin-top:36px">Reserve is rolling out now. Request access and our team will set you up in your ticket.</p>
+  <div class="glass"><i class="mark"></i><h3>Unlimited recipes</h3><p>Free accounts hold {{limit}} recipes. Reserve has no limit, so your whole collection fits.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Sous weekly planner</h3><p>Plan breakfast, lunch and dinner for each day. Pick from the Garde recipe library or your own recipes, set servings for each meal, and move between weeks.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Straight to your Pantry</h3><p>Every recipe you plan is saved to your collection and its ingredients are added to your shopping list, scaled to the servings you chose and sorted by aisle.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Meal plan templates</h3><p>Save a week you loved and reuse it. Copy last week with one click, or start from a saved template.</p></div>
+  <div class="glass"><i class="mark"></i><h3>What can I cook?</h3><p>List what's in your fridge and Garde ranks the recipes you can make now, with the few ingredients you're missing.</p></div>
+  {{#if smart}}<div class="glass"><i class="mark"></i><h3>Smart photo scanning</h3><p>Snap a handwritten card or a cookbook page and AI reads it into a clean recipe, much better than basic text recognition.</p></div>{{/if}}
+  <div class="glass"><i class="mark"></i><h3>Priority support</h3><p>Your tickets are pinned to the top of our queue and answered first.</p></div>
+  <div class="glass"><i class="mark"></i><h3>A growing library</h3><p>New recipes are added to the Sous library over time, ready to plan with.</p></div>
+  <div class="glass"><i class="mark"></i><h3>Reserve badge</h3><p>A small mark on your account, and our thanks for supporting Garde.</p></div>
+</div></section>
+
+<section class="steps" style="padding-top:20px"><h2>Free and Reserve, side by side</h2>
+<div class="glass ptable-wrap"><table class="ptable"><thead><tr><th></th><th>Free</th><th>Reserve</th></tr></thead><tbody>
+  <tr><td>Saved recipes</td><td>{{limit}}</td><td>Unlimited</td></tr>
+  <tr><td>Link import, photo scan, search, collections</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Pantry list, scaling, US and metric</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Cook mode, sharing, photos, ratings</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Sous weekly planner and templates</td><td>–</td><td>✓</td></tr>
+  <tr><td>What can I cook?</td><td>–</td><td>✓</td></tr>
+  {{#if smart}}<tr><td>Smart photo scanning</td><td>–</td><td>✓</td></tr>{{/if}}
+  <tr><td>Support</td><td>Standard</td><td>Priority</td></tr>
+</tbody></table></div></section>
+
+<section class="steps" style="padding-top:20px"><h2>How it works</h2>
+<div class="grid3"><div class="glass"><b class="n">1</b><h3>Request access</h3><p>Sign in and press Request access. It opens a ticket with our team.</p></div>
+  <div class="glass"><b class="n">2</b><h3>We set you up</h3><p>We turn Reserve on for your account and reply in the ticket. It takes effect right away, with no refresh.</p></div>
+  <div class="glass"><b class="n">3</b><h3>Start planning</h3><p>Open Sous, pick your meals for the week, and your Pantry fills itself.</p></div></div></section>
+
+<section class="steps" style="padding-top:20px"><h2>Good to know</h2>
+<div class="faq">
+  <details class="glass"><summary>How much does it cost?</summary><p>$9.99 a month. Online billing is still being set up, so for now we activate Reserve for you directly after you request access, and we'll tell you before any charge starts.</p></details>
+  <details class="glass"><summary>What happens to my recipes if Reserve ends?</summary><p>Everything you saved stays yours. You keep your recipes, photos and past plans. You just can't add recipes beyond the free limit of {{limit}}, and the Sous planner, What can I cook? and smart scanning pause until you're back.</p></details>
+  <details class="glass"><summary>Can I cancel any time?</summary><p>Yes. Ask in a support ticket and we'll end it. There's no long-term commitment.</p></details>
+  <details class="glass"><summary>Where do Sous recipes come from?</summary><p>They're written and tested by us. When you add one to your plan, a copy is saved to your own collection so you can edit it, scale it and cook from it like any other recipe.</p></details>
+  {{#if smart}}<details class="glass"><summary>What happens to photos I scan with smart scan?</summary><p>The photo is sent securely to Google's Gemini service just to read the recipe, and isn't kept by Garde unless you choose to keep the scanned card with your recipe. See the <a href="#/privacy">Privacy Policy</a>.</p></details>{{/if}}
+  <details class="glass"><summary>Is it worth it if I only cook now and then?</summary><p>Probably not yet. The free plan has everything you need to save, scale and cook from up to {{limit}} recipes. Reserve is for people planning their weeks or building a big collection.</p></details>
+</div></section>
+
+<section class="cta glass"><h2>Ready to plan your week?</h2><p>Request access and we'll have you set up shortly.</p>
+  {{#if signedOut}}<a class="btn main big" href="#/login">Sign in to request access</a>{{else}}{{#if member}}<a class="btn main big" href="#/sous">Open Sous</a>{{else}}<a class="btn main big" href="#/reserve" id="req2">Request access above</a>{{/if}}{{/if}}</section>
