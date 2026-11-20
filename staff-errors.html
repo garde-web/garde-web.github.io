@@ -1,0 +1,6 @@
+{{> staff#head}}
+<p class="lead">Problems reported automatically by people's browsers (most recent first). Repeats are grouped together.</p>
+<div class="bar"><button class="btn danger" id="clr">Clear all</button></div>
+<div id="el"></div>
+<template id="list">{{#each groups}}<div class="panel glass"><div class="row" style="justify-content:space-between"><b>{{message}}</b><span class="badge dark">{{count}}×</span></div><p class="meta" style="margin-top:8px">{{where}} · last {{ago}}</p><details class="meta"><summary>Details</summary><pre class="errpre">{{stack}}</pre></details></div>{{else}}<div class="empty glass"><h3>No errors reported</h3>That's good news.</div>{{/each}}</template>
+<template id="error"><p class="meta">Couldn't load errors. Publish the updated Firestore rules.</p></template>

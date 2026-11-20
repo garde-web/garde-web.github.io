@@ -1,0 +1,12 @@
+<h1 class="pg">What can I cook?</h1><p class="lead">List what's in your fridge and pantry, and Garde finds the recipes you can make, from your own recipes and the Sous library.</p>
+<div class="panel glass"><label for="have" style="margin-top:0">What do you have? (separate with commas or new lines)</label><textarea id="have" placeholder="chicken, rice, lemon, garlic, spinach"></textarea>
+  <label class="chk" style="margin-top:16px"><input type="checkbox" id="staples" checked> Assume I have salt, pepper, water and cooking oil</label>
+  <div class="row" style="margin-top:20px"><button class="btn main" id="go">Find recipes</button></div></div>
+<div id="res" style="margin-top:24px"></div>
+
+<template id="locked"><div class="center glass"><span class="badge">GARDE RESERVE</span><h2 style="margin-top:18px">What can I cook?</h2><p>Tell Garde what's in your kitchen and it finds the recipes you can make right now. It's part of Garde Reserve.</p><a class="btn main" href="#/reserve">See Garde Reserve</a></div></template>
+<template id="loading"><p class="meta">Loading…</p></template>
+<template id="results">{{#if none}}<p class="meta">Type a few ingredients above to get started.</p>
+{{else}}<div class="grid">{{#each cards}}<div class="glass panel sc"><small class="meta">You have {{have}} of {{total}} ingredients{{#if ready}} · ready to cook{{/if}}</small><h3>{{title}}</h3>
+{{#if missing}}<p class="meta" style="margin:0">Missing: {{missing}}</p>{{/if}}
+{{#if own}}<a class="btn main" href="#/recipe/{{id}}">Open recipe</a>{{else}}<button class="btn main" data-save="{{n}}">Save to my recipes</button>{{/if}}</div>{{else}}<div class="empty glass" style="grid-column:1/-1"><h3>No matches yet</h3>Try adding a few more ingredients, or tick the box about staples.</div>{{/each}}</div>{{/if}}</template>

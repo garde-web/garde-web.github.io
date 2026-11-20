@@ -1,0 +1,14 @@
+<div class="cookbar"><a class="btn" href="#/recipe/{{id}}">✕ Exit</a><b class="cooktitle">{{title}}</b>
+  <span class="seg" role="group" aria-label="Units">{{#each units}}<button data-u="{{v}}" aria-pressed="{{on}}">{{label}}</button>{{/each}}</span><button class="btn" id="ci">Ingredients</button></div>
+<div class="cookwrap">
+  <div class="cookstep"><small class="meta" id="cn"></small><p id="ct" class="bigstep"></p><div id="ctimers" class="row"></div></div>
+  <div class="dotsrow" id="cd"></div>
+  <div class="cookbtns"><button class="btn big" id="cp">← Back</button><button class="btn main big" id="cx">Next →</button></div>
+  <div id="timers" class="timers"></div>
+</div>
+<aside id="cing" class="cooking-ing glass" hidden><h3>Ingredients</h3><ul id="cinglist">{{#each ingredients}}<li>{{.}}</li>{{/each}}</ul></aside>
+
+<template id="notfound"><div class="empty glass"><h3>Recipe not found</h3><a class="btn" href="#/dashboard">Back to my recipes</a></div></template>
+<template id="ingredients">{{#each items}}<li>{{.}}</li>{{/each}}</template>
+<template id="timerbtns">{{#each list}}<button class="btn" data-t="{{n}}">⏱ Start {{label}} timer</button>{{/each}}</template>
+<template id="timers">{{#each list}}<div class="timer{{#if done}} done{{/if}}"><b>{{label}}</b><span>{{left}}</span><button data-x="{{id}}" aria-label="Dismiss timer">×</button></div>{{/each}}</template>

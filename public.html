@@ -1,0 +1,8 @@
+<div class="detail">
+  {{#if photo}}<img class="cover zoomable" src="{{photo}}" alt="Photo of {{title}}">{{else}}{{#if image}}<img class="cover" src="{{image}}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">{{/if}}{{/if}}
+  <div class="hdr"><div><h2>{{title}}</h2><p class="meta">{{meta}}</p><p class="meta">Shared by {{by}} on Garde</p></div>
+    <div class="row noprint"><button class="btn main" id="sv2">Save to my Garde</button><button class="btn" id="pr">Print</button></div></div>
+  <div class="panel glass"><h3>Ingredients</h3><ul>{{#each ingredients}}<li>{{.}}</li>{{/each}}</ul></div>
+  <div class="panel glass"><h3>Steps</h3><ol>{{#each steps}}<li>{{.}}</li>{{/each}}</ol>{{#if notes}}<h3 style="margin-top:28px">Notes</h3><p class="meta">{{notes}}</p>{{/if}}</div>
+</div>
+<template id="missing"><div class="empty glass"><h3>This recipe isn't shared anymore</h3>The link may be wrong, or the owner stopped sharing it.<br><a class="btn main" href="#/">Go to Garde</a></div></template>
