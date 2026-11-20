@@ -23,6 +23,18 @@
 <script>
 addEventListener("error", e => { const a = document.getElementById("app"); if (a && !a.children.length) a.innerHTML = '<div style="max-width:560px;margin:10vh auto;text-align:center;line-height:1.6"><h2>Garde couldn\'t start</h2><p style="color:#6b645c">' + String(e.message || "A file failed to load").replace(/</g, "&lt;") + '</p><p style="color:#6b645c">Press F12 and open the Console for details. Make sure every file from the download was uploaded next to index.html.</p></div>'; });
 </script>
-<script type="module" src="app.js" onerror="document.getElementById('app').textContent='A Garde file failed to load. Check that app.js and the other .js files were uploaded next to index.html.'"></script>
+<script>
+// If the app can't load, find out exactly which files are missing.
+async function gardeDiag() {
+  const need = ["app.js", "tpl.js", "support.js", "sous.js", "cook.js", "extras.js", "photos.js", "extract.js", "library.js", "scale.js", "firebase-config.js"];
+  const missing = (await Promise.all(need.map(f => fetch(f, { cache: "no-cache" }).then(r => r.ok ? null : f).catch(() => f)))).filter(Boolean);
+  const box = document.createElement("div"); box.style.cssText = "max-width:560px;margin:10vh auto;text-align:center;line-height:1.6";
+  const h = document.createElement("h2"), p = document.createElement("p"); p.style.color = "#6b645c";
+  if (missing.length) { h.textContent = "Some files are missing"; p.textContent = "Upload these next to index.html, then refresh: " + missing.join(", "); }
+  else { h.textContent = "Garde couldn't start"; p.textContent = "All the files were found, but one didn't load. Press Ctrl+Shift+R to refresh, then open check.html on your site."; }
+  box.append(h, p); const a = document.getElementById("app"); a.innerHTML = ""; a.append(box);
+}
+</script>
+<script type="module" src="app.js" onerror="gardeDiag()"></script>
 </body>
 </html>
