@@ -15,6 +15,7 @@
 {{else}}
 <a class="l" href="#/"{{#if on.home}} aria-current="page"{{/if}}>Home</a>
 <a class="l hide" href="#/features"{{#if on.features}} aria-current="page"{{/if}}>Features</a>
+<a class="l hide" href="#/news"{{#if on.news}} aria-current="page"{{/if}}>Newsroom</a>
 <a class="l hide" href="#/reserve"{{#if on.reserve}} aria-current="page"{{/if}}>Reserve</a>
 <a class="l hide" href="#/support"{{#if on.support}} aria-current="page"{{/if}}>Support</a>
 <a class="l hide" href="#/about"{{#if on.about}} aria-current="page"{{/if}}>About</a>
@@ -24,7 +25,7 @@
 
 <template id="footer">
 <div class="foot glass"><div><a class="logo" href="#/">Garde</a><p>Your recipes, all in one place.</p></div>
-<nav aria-label="Footer"><a href="#/features">Features</a><a href="#/reserve">Garde Reserve</a><a href="#/support">Support</a><a href="#/status">Status</a><a href="#/about">About &amp; FAQ</a><a href="#/privacy">Privacy</a><a href="#/terms">Terms</a><a href="#/login">Sign in</a></nav></div>
+<nav aria-label="Footer"><a href="#/features">Features</a><a href="#/reserve">Garde Reserve</a><a href="#/support">Support</a><a href="#/news">Newsroom</a><a href="#/status">Status</a><a href="#/about">About &amp; FAQ</a><a href="#/privacy">Privacy</a><a href="#/terms">Terms</a><a href="#/login">Sign in</a></nav></div>
 </template>
 
 <template id="statusbar">{{#if text}}<a class="banner warn" href="#/status">{{text}} <u>View status</u></a>{{/if}}</template>

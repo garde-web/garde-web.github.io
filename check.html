@@ -4,7 +4,7 @@
 <body><h1>Garde file check</h1><p>This page checks that every file the site needs can be reached. Anything marked ✗ is missing or in the wrong folder.</p><p>Site folder: <code id="root"></code></p><ul id="out"></ul>
 <script>
 const files = ["index.html", "style.css", "firebase-config.js", "jonny.jpg", "manifest.webmanifest", "sw.js", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
-  "app.js", "tpl.js", "support.js", "sous.js", "cook.js", "extras.js", "status.js", "photos.js", "extract.js", "library.js", "scale.js",
+  "app.js", "tpl.js", "support.js", "sous.js", "cook.js", "extras.js", "status.js", "news.js", "photos.js", "extract.js", "library.js", "scale.js",
   ...["about", "add", "collections", "dashboard", "faq", "features", "home", "layout", "login", "pantry", "recipe", "reserve", "settings", "shared", "sous", "staff-library", "staff-members", "staff-overview", "staff-replies", "staff-settings", "staff-tickets", "staff-errors", "staff", "support", "ticket", "cook", "public", "fridge", "privacy", "terms"].map(n => n + ".html")];
 document.getElementById("root").textContent = new URL("./", location.href).href;
 files.forEach(async f => {

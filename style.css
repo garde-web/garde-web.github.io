@@ -252,3 +252,16 @@ body.cooking main{padding-top:18px;min-height:100vh;display:flex;flex-direction:
 .incident{margin-bottom:14px}.itl{font-size:1.1rem}
 .timeline-u{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:12px;border-left:2px solid var(--edge);padding-left:18px}.timeline-u p{margin:2px 0 0;color:#3d3832;white-space:pre-wrap}
 .comprow{margin-bottom:10px}.comprow input{flex:1;min-width:0}
+
+/* Newsroom */
+.typ{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}.typ.announcement{color:var(--leaf)}.typ.article{color:#6b4fbb}
+.featured{display:grid;grid-template-columns:1.1fr 1fr;border-radius:28px;overflow:hidden;text-decoration:none;margin-bottom:26px;transition:transform .25s}.featured:hover{transform:translateY(-3px)}
+.fimg{position:relative;min-height:300px;background:var(--tint);display:grid;place-items:center;font:400 6rem "Instrument Serif",serif;color:var(--accent)}.fimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.fbody{padding:40px 38px;display:flex;flex-direction:column;justify-content:center;gap:12px}.fbody h2{margin:0}
+.news-card .body p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.news-article{max-width:740px;margin:0 auto}.newscover{width:100%;border-radius:24px;margin:26px 0;display:block}
+.articlebody{font-size:1.1rem;line-height:1.85;color:#2b2722}.articlebody h2{margin:1.6em 0 .4em}.articlebody h3{margin:1.4em 0 .3em}.articlebody h4{margin:1.2em 0 .2em;font-family:Manrope,sans-serif;font-size:1.1rem}
+.articlebody p{margin:0 0 1.1em}.articlebody ul,.articlebody ol{padding-left:24px;margin:0 0 1.1em;display:grid;gap:6px}.articlebody blockquote{border-left:3px solid var(--accent);margin:1.2em 0;padding:4px 0 4px 20px;color:var(--mute);font-style:italic}
+.articlebody img{max-width:100%;border-radius:16px;margin:10px 0}.articlebody a{color:var(--accent)}.articlebody hr{border:0;border-top:1px solid var(--edge);margin:2em 0}
+.boiler{padding:26px 30px;border-radius:var(--r);margin-top:36px}.boiler h3{font-size:1.25rem;margin:0 0 6px}.boiler p{color:#3d3832}.boiler h3:not(:first-child){margin-top:18px}
+@media(max-width:860px){.featured{grid-template-columns:1fr}.fbody{padding:26px}.fimg{min-height:220px}}

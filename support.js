@@ -137,9 +137,9 @@ export function mountSupport(ctx) {
   async function staff(tab) {
     if (!ctx.isStaff) { await show("staff#denied"); return; }
     tab = tab || "overview";
-    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"], ["errors", "Errors"]].concat(ctx.isAdmin ? [["status", "Status"], ["settings", "Settings"]] : []);
+    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"], ["errors", "Errors"]].concat(ctx.isAdmin ? [["newsroom", "Newsroom"], ["status", "Status"], ["settings", "Settings"]] : []);
     const tabs = list.map(([k, label]) => ({ k, label, on: k === tab }));
-    await ({ overview, tickets, members, library, replies, errors, status: t => ctx.statusAdmin(t), settings }[tab] || overview)(tabs);
+    await ({ overview, tickets, members, library, replies, errors, status: t => ctx.statusAdmin(t), newsroom: t => ctx.newsAdmin(t), settings }[tab] || overview)(tabs);
   }
 
   async function overview(tabs) {
