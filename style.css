@@ -239,3 +239,16 @@ body.cooking main{padding-top:18px;min-height:100vh;display:flex;flex-direction:
   .detail{display:block}.panel{margin-bottom:18px}.cover,.scanthumb{max-height:240px;object-fit:cover;border-radius:8px}
   a{color:#000;text-decoration:none}.step button,.seg{display:none}
 }
+
+/* Status page */
+.banner.warn{display:block;background:#fff4d6;color:#5a4300;text-decoration:none;border-bottom:1px solid #f0d98a}.banner.warn u{margin-left:6px;font-weight:700}
+.statusbanner{display:flex;align-items:center;gap:16px;padding:24px 28px;border-radius:var(--r);border:1px solid}.statusbanner b{display:block;font:400 1.9rem "Instrument Serif",serif}.statusbanner small{color:inherit;opacity:.8}
+.statusbanner .sdot{width:16px;height:16px;border-radius:50%;flex-shrink:0;background:currentColor}
+.statusbanner.ok{background:#e9f7ef;border-color:#bfe6cf;color:#15753f}.statusbanner.degraded{background:#fff6e0;border-color:#f2d58a;color:#8a5a00}
+.statusbanner.outage{background:#fdecea;border-color:#f3b8b2;color:#b3261e}.statusbanner.maint{background:#e8f0fe;border-color:#b9cffa;color:#1a56c4}
+.comps{display:grid;gap:10px}.comp{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-radius:16px}
+.spill{display:inline-block;padding:3px 12px;border-radius:99px;font-size:.82rem;font-weight:700}
+.spill.operational{background:#e9f7ef;color:#15753f}.spill.degraded,.spill.minor{background:#fff6e0;color:#8a5a00}.spill.outage,.spill.major{background:#fdecea;color:#b3261e}.spill.maintenance{background:#e8f0fe;color:#1a56c4}
+.incident{margin-bottom:14px}.itl{font-size:1.1rem}
+.timeline-u{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:12px;border-left:2px solid var(--edge);padding-left:18px}.timeline-u p{margin:2px 0 0;color:#3d3832;white-space:pre-wrap}
+.comprow{margin-bottom:10px}.comprow input{flex:1;min-width:0}

@@ -5,6 +5,7 @@ import { scaleLine, convertLine, convertText, buildList, itemText, ORDER } from 
 import { resizeImage, thumbOf } from "./photos.js";
 import { mountCook } from "./cook.js";
 import { mountExtras } from "./extras.js";
+import { mountStatus } from "./status.js";
 import { extractRecipe, bookmarklet } from "./extract.js";
 import { mountSupport } from "./support.js";
 import { mountSous, weekEntries } from "./sous.js";
@@ -74,6 +75,7 @@ async function route() {
     features: () => show("features"), about: () => show("about"),
     collections, pantry, shopping: pantry, settings,
     cook: () => C.cook(id), s: () => X.shared(id), fridge: () => X.fridge(), privacy: () => show("privacy"), terms: () => show("terms"),
+    status: () => ST.status(),
     support: () => P.support(), ticket: () => P.ticket(id), staff: () => P.staff(id), reserve: () => P.reserve(), sous: () => S.sous()
   };
   await (pages[page] || pages[""])();
@@ -411,8 +413,9 @@ const stashSeed = o => { try { sessionStorage.setItem("garde.seed", btoa(String.
 const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, stashSeed, refreshBanner: loadBanner,
   invalidate: () => { recipes = null; }, setUnsub: f => { unsub = f; },
   get smart() { return !!IMPORT_PROXY; }, get user() { return user; }, get isStaff() { return isStaff; }, get isAdmin() { return isAdmin; }, get isReserve() { return isReserve; } };
-const P = mountSupport(ctx), S = mountSous(ctx), C = mountCook(ctx), X = mountExtras(ctx);
-loadBanner();
+const P = mountSupport(ctx), S = mountSous(ctx), C = mountCook(ctx), X = mountExtras(ctx), ST = mountStatus(ctx);
+ctx.statusAdmin = ST.admin;
+loadBanner(); ST.watchBar();
 
 // Tap a photo to enlarge it
 document.addEventListener("click", e => { const z = e.target.closest && e.target.closest(".zoomable"); if (z) z.classList.toggle("zoom"); });

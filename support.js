@@ -25,6 +25,7 @@ export function mountSupport(ctx) {
   const audit = (action, target, detail = "") => addDoc(collection(db, "audit"), { at: stamp(), by: me().uid, byName: me().displayName || me().email || "", action, target, detail }).catch(() => {});
   const grant = async (uid, months, name) => { try { await setDoc(doc(db, "reserve", uid), { since: stamp(), by: me().uid, until: months ? Date.now() + months * 30 * DAYMS : 0 }); audit("granted Reserve to", name || uid, months ? months + " month(s)" : "no end date"); toast("Reserve granted"); } catch (e) { toast("Couldn't update. Check your Firestore rules."); } };
   const revoke = async (uid, name) => { try { await deleteDoc(doc(db, "reserve", uid)); audit("revoked Reserve from", name || uid); toast("Reserve revoked"); } catch (e) { toast("Couldn't update. Check your Firestore rules."); } };
+  ctx.audit = audit;
   const cmp = (a, b) => (b.priority ? 1 : 0) - (a.priority ? 1 : 0) || secs(a.updatedAt) - secs(b.updatedAt);
   // Ticket rows for shared.html
   const rows = (list, sv) => list.map(t => ({ id: t.id, unread: !sv && !!t.unread, priority: sv && !!t.priority, subject: t.subject, status: t.status, label: LABEL[sv ? "staff" : "user"][t.status] || t.status,
@@ -136,9 +137,9 @@ export function mountSupport(ctx) {
   async function staff(tab) {
     if (!ctx.isStaff) { await show("staff#denied"); return; }
     tab = tab || "overview";
-    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"], ["errors", "Errors"]].concat(ctx.isAdmin ? [["settings", "Settings"]] : []);
+    const list = [["overview", "Overview"], ["tickets", "Tickets"], ["members", "Members"], ["library", "Library"], ["replies", "Replies"], ["errors", "Errors"]].concat(ctx.isAdmin ? [["status", "Status"], ["settings", "Settings"]] : []);
     const tabs = list.map(([k, label]) => ({ k, label, on: k === tab }));
-    await ({ overview, tickets, members, library, replies, errors, settings }[tab] || overview)(tabs);
+    await ({ overview, tickets, members, library, replies, errors, status: t => ctx.statusAdmin(t), settings }[tab] || overview)(tabs);
   }
 
   async function overview(tabs) {

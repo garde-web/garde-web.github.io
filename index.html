@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
+<div id="statusbar"></div>
 <div id="banner"></div>
 <header class="nav glass" id="nav"></header>
 <main id="app" tabindex="-1"></main>
@@ -26,7 +27,7 @@ addEventListener("error", e => { const a = document.getElementById("app"); if (a
 <script>
 // If the app can't load, find out exactly which files are missing.
 async function gardeDiag() {
-  const need = ["app.js", "tpl.js", "support.js", "sous.js", "cook.js", "extras.js", "photos.js", "extract.js", "library.js", "scale.js", "firebase-config.js"];
+  const need = ["app.js", "tpl.js", "support.js", "sous.js", "cook.js", "extras.js", "photos.js", "status.js", "extract.js", "library.js", "scale.js", "firebase-config.js"];
   const missing = (await Promise.all(need.map(f => fetch(f, { cache: "no-cache" }).then(r => r.ok ? null : f).catch(() => f)))).filter(Boolean);
   const box = document.createElement("div"); box.style.cssText = "max-width:560px;margin:10vh auto;text-align:center;line-height:1.6";
   const h = document.createElement("h2"), p = document.createElement("p"); p.style.color = "#6b645c";

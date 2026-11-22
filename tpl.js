@@ -80,6 +80,7 @@ function out(nodes, st) {
 export async function view(spec, data = {}) { return out(await get(spec), [{ v: data }]); }
 // Render into an element. If a newer render started meanwhile, this one is dropped and false is returned.
 export async function fill(el, spec, data, quiet = false) {
+  if (!el) return false;
   const g = (gen.get(el) || 0) + 1; gen.set(el, g); let html;
   try { html = await view(spec, data); } catch (e) { console.error(e); html = quiet ? "" : `<div class="empty glass"><h3>This page couldn't load</h3>${esc(e.message)}</div>`; }
   if (gen.get(el) !== g) return false;
