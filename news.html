@@ -1,0 +1,13 @@
+<section class="mission" style="padding-bottom:10px"><span class="eyebrow">Newsroom</span>
+  <h1 class="big" style="font-size:clamp(2.6rem,7vw,5rem)">News and press from Garde</h1>
+  <p class="lead">Announcements, stories and press releases. Media enquiries: <a href="#/support">contact us</a>.</p></section>
+<div class="bar"><button class="chip" data-f="all" aria-pressed="true">All</button><button class="chip" data-f="press" aria-pressed="false">Press releases</button><button class="chip" data-f="article" aria-pressed="false">Articles</button><button class="chip" data-f="announcement" aria-pressed="false">Announcements</button></div>
+<div id="nlist"><p class="meta">Loading…</p></div>
+
+<template id="cards">
+{{#if none}}<div class="empty glass"><h3>Nothing published yet</h3>Check back soon for news from Garde.</div>
+{{else}}
+{{#if featured}}<a class="featured glass" href="#/news/{{featured.slug}}"><div class="fimg">{{#if featured.thumb}}<img src="{{featured.thumb}}" alt="" loading="lazy">{{else}}<span>{{featured.letter}}</span>{{/if}}</div><div class="fbody"><small class="typ {{featured.type}}">{{featured.typeLabel}}</small><h2>{{featured.title}}</h2><p class="meta">{{featured.summary}}</p><small class="meta">{{featured.date}}</small></div></a>{{/if}}
+<div class="grid">{{#each cards}}<a class="rc glass news-card" href="#/news/{{slug}}"><div class="img">{{#if thumb}}<img src="{{thumb}}" alt="" loading="lazy">{{else}}<span>{{letter}}</span>{{/if}}</div><div class="body"><small class="typ {{type}}">{{typeLabel}}</small><h3>{{title}}</h3><small>{{date}}</small><p class="meta" style="margin-top:8px">{{summary}}</p></div></a>{{/each}}</div>
+{{/if}}
+</template>

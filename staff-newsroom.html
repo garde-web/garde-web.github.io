@@ -1,0 +1,25 @@
+<template id="list">{{> staff#head}}
+<p class="lead">Write and publish articles and press releases. They appear in the public <a href="#/news">Newsroom</a>. Only admins can do this.</p>
+<div class="bar"><button class="btn main" id="nnew">New article</button></div>
+{{#each items}}<div class="trow glass"><b>{{title}}{{#if featured}} <span class="badge">FEATURED</span>{{/if}}</b><span class="row" style="flex-wrap:nowrap"><span class="st {{status}}">{{statusLabel}}</span><a class="btn" href="#/news/{{id}}">View</a><button class="btn" data-e="{{id}}">Edit</button><button class="btn danger" data-d="{{id}}">Delete</button></span><small>{{typeLabel}} · {{date}}</small></div>{{else}}<div class="empty glass"><h3>No articles yet</h3>Write your first article or press release.</div>{{/each}}
+</template>
+
+<template id="editor">{{> staff#head}}
+<div class="panel glass"><h3>{{#if editing}}Edit article{{else}}New article{{/if}}</h3>
+  <div class="two"><div><label for="nt" style="margin-top:0">Type</label><select id="nt">{{#each types}}<option value="{{v}}"{{#if on}} selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+    <div><label for="na" style="margin-top:0">Author</label><input id="na" value="{{author}}" placeholder="Jonny"></div></div>
+  <label for="nti">Title</label><input id="nti" value="{{title}}" maxlength="140">
+  <label for="ns">Web address</label><input id="ns" value="{{slug}}" {{#if editing}}readonly{{/if}} placeholder="garde-launches-sous"><small class="meta">yoursite/#/news/<b>this-part</b>. It can't be changed after saving.</small>
+  <label for="nsu">Summary (shown in lists, one or two sentences)</label><textarea id="nsu" style="min-height:70px" maxlength="300">{{summary}}</textarea>
+  <label for="nb">Article text</label>
+  <div class="row fmtbar" style="gap:6px;margin-bottom:8px"><button class="btn" type="button" id="fb"><b>B</b></button><button class="btn" type="button" id="fi"><i>I</i></button><button class="btn" type="button" id="fh">Heading</button><button class="btn" type="button" id="fl">• List</button><button class="btn" type="button" id="fq">Quote</button><button class="btn" type="button" id="fk">Link</button></div>
+  <textarea id="nb" style="min-height:260px" placeholder="Write here. Start a line with ## for a heading, - for a bullet. Use **bold** and *italic*.">{{body}}</textarea>
+  <label>Preview</label><div class="articlebody glass" id="prev" style="padding:20px 24px;border-radius:16px"></div>
+  <label for="nc">Media contact (shown on press releases)</label><input id="nc" value="{{contact}}" placeholder="press@yourdomain.com">
+  <label>Cover image</label>
+  <div class="row"><input class="sr" id="ncf" type="file" accept="image/*"><label class="btn" for="ncf">Upload image</label>{{#if preview}}<button class="btn" type="button" id="ncx">Remove</button>{{/if}}</div>
+  <input id="ncu" value="{{coverUrl}}" placeholder="…or paste an image link" style="margin-top:10px" aria-label="Cover image link">
+  {{#if preview}}<img class="pthumb" src="{{preview}}" alt="Cover preview" style="max-width:320px">{{/if}}
+  <label class="chk" style="margin-top:22px"><input type="checkbox" id="nf"{{#if featured}} checked{{/if}}> Feature this on the Newsroom page (when published)</label>
+  <div class="row" style="margin-top:28px"><button class="btn main" id="npub">{{#if wasPublished}}Update published article{{else}}Publish{{/if}}</button><button class="btn" id="nsave">Save as draft</button><button class="btn" id="ncancel">Cancel</button></div></div>
+</template>

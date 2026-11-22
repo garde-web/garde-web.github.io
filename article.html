@@ -1,0 +1,15 @@
+<article class="news-article">
+  <a class="meta noprint" href="#/news">← Newsroom</a>
+  <p style="margin-top:18px"><small class="typ {{type}}">{{typeLabel}}</small></p>
+  <h1 class="pg" style="margin:8px 0 10px">{{title}}</h1>
+  <p class="meta">{{date}}{{#if author}} · By {{author}}{{/if}}{{#if draft}} · <b>Draft: only admins can see this</b>{{/if}}</p>
+  {{#if summary}}<p class="lead" style="margin-top:18px">{{summary}}</p>{{/if}}
+  {{#if cover}}<img class="newscover zoomable" src="{{cover}}" alt="">{{/if}}
+  <div class="articlebody">{{{body}}}</div>
+  {{#if press}}<div class="boiler glass"><h3>About Garde</h3><p>Garde is a recipe-keeping website. It lets people save recipes from any website or from a photo of a recipe card, then scale them, cook from them step by step and turn them into a shopping list, all in one place.</p>
+    {{#if contact}}<h3>Media contact</h3><p>{{contact}}</p>{{/if}}<p class="meta">###</p></div>{{/if}}
+  <div class="row noprint" style="margin-top:28px"><button class="btn" id="ncopy">Copy link</button><button class="btn" id="npr">Print</button></div>
+  {{#if more}}<h3 style="margin:48px 0 16px" class="noprint">More from the Newsroom</h3><div class="grid noprint">{{#each more}}<a class="rc glass news-card" href="#/news/{{slug}}"><div class="img">{{#if thumb}}<img src="{{thumb}}" alt="" loading="lazy">{{else}}<span>{{letter}}</span>{{/if}}</div><div class="body"><small class="typ {{type}}">{{typeLabel}}</small><h3>{{title}}</h3><small>{{date}}</small></div></a>{{/each}}</div>{{/if}}
+</article>
+
+<template id="missing"><div class="empty glass"><h3>We couldn't find that article</h3>It may have been moved or unpublished.<br><a class="btn main" href="#/news">Go to the Newsroom</a></div></template>
