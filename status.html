@@ -1,0 +1,12 @@
+<h1 class="pg">Garde status</h1>
+<p class="lead">Is something not working? This page shows how Garde is doing right now and what we're fixing. Need help? <a href="#/support">Open a ticket</a>.</p>
+<div id="overall"></div>
+<h3 style="margin:34px 0 14px">Services</h3><div id="comps"></div>
+<h3 style="margin:34px 0 14px">Active incidents</h3><div id="active"></div>
+<h3 style="margin:34px 0 14px">Past incidents</h3><div id="past"></div>
+
+<template id="overall"><div class="statusbanner {{level}}"><span class="sdot"></span><div><b>{{headline}}</b><small>{{sub}}</small></div></div></template>
+<template id="comps"><div class="comps">{{#each items}}<div class="comp glass"><b>{{name}}</b><span class="spill {{state}}">{{label}}</span></div>{{/each}}</div></template>
+<template id="incidents">{{#each list}}<div class="panel glass incident"><div class="row" style="justify-content:space-between"><b class="itl">{{title}}</b><span class="spill {{impact}}">{{impactLabel}}</span></div>
+<small class="meta">Started {{when}}{{#if affects}} · Affects {{affects}}{{/if}}</small>
+<ul class="timeline-u">{{#each updates}}<li><b>{{stateLabel}}</b> <span class="meta">{{when}}</span><p>{{text}}</p></li>{{/each}}</ul></div>{{else}}<p class="meta">{{empty}}</p>{{/each}}</template>

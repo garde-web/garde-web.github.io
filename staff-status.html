@@ -1,0 +1,27 @@
+{{> staff#head}}
+<p class="lead">Control what visitors see on the <a href="#/status">Status page</a>. Only admins can change this. Everything you publish appears there immediately.</p>
+
+<div class="panel glass"><h3>Services</h3><p class="meta">Set each service to Operational, Degraded, Outage or Maintenance. The top of the status page and a notice bar across the site update to match.</p>
+  <div id="clist" style="margin-top:12px"></div>
+  <div class="row" style="margin-top:18px"><button class="btn" id="cadd">Add a service</button><button class="btn main" id="csave">Save services</button></div></div>
+
+<div class="panel glass"><h3>Report an incident</h3>
+  <label for="it" style="margin-top:0">Title</label><input id="it" maxlength="120" placeholder="Link import is failing for some sites">
+  <div class="two"><div><label for="ii">Impact</label><select id="ii"><option value="minor">Minor (degraded)</option><option value="major">Major (outage)</option><option value="maintenance">Maintenance</option></select></div>
+    <div><label for="is">Status</label><select id="is"><option value="investigating">Investigating</option><option value="identified">Identified</option><option value="monitoring">Monitoring</option><option value="scheduled">Scheduled</option><option value="resolved">Resolved</option></select></div></div>
+  <label for="im">Message</label><textarea id="im" maxlength="1000" placeholder="What's happening, and what people should expect."></textarea>
+  <label>Affected services</label><div class="row" id="iaff"></div>
+  <label class="chk" style="margin-top:18px"><input type="checkbox" id="iauto" checked> Set the affected services to match the impact</label>
+  <div class="row" style="margin-top:22px"><button class="btn main" id="icreate">Publish incident</button></div></div>
+
+<h3 style="margin:30px 0 14px">Open incidents</h3><div id="open"></div>
+<h3 style="margin:30px 0 14px">Resolved incidents</h3><div id="done"></div>
+
+<template id="comps">{{#each comps}}<div class="row nowrap comprow"><input data-n="{{i}}" value="{{name}}" aria-label="Service name"><select data-s="{{i}}" style="width:auto" aria-label="Status">{{#each states}}<option value="{{v}}"{{#if on}} selected{{/if}}>{{label}}</option>{{/each}}</select><button class="btn danger" data-rm="{{i}}" aria-label="Remove service">Remove</button></div>{{/each}}</template>
+<template id="aff">{{#each comps}}<label class="chk"><input type="checkbox" data-a="{{id}}"> {{name}}</label>{{/each}}</template>
+<template id="open">{{#each list}}<div class="panel glass"><div class="row" style="justify-content:space-between"><b>{{title}}</b><span class="spill {{impact}}">{{impactLabel}}</span></div>
+<small class="meta">Started {{when}}{{#if affects}} · Affects {{affects}}{{/if}}</small>
+<ul class="timeline-u">{{#each updates}}<li><b>{{stateLabel}}</b> <span class="meta">{{when}}</span><p>{{text}}</p></li>{{/each}}</ul>
+<div class="row nowrap" style="margin-top:14px"><select data-us="{{id}}" style="width:auto" aria-label="New status">{{#each states}}<option value="{{v}}"{{#if on}} selected{{/if}}>{{label}}</option>{{/each}}</select><input data-ut="{{id}}" placeholder="Post an update" aria-label="Update"><button class="btn main" data-up="{{id}}">Post</button></div>
+<div class="row" style="margin-top:12px"><button class="btn danger" data-del="{{id}}">Delete incident</button></div></div>{{else}}<p class="meta">No open incidents.</p>{{/each}}</template>
+<template id="done">{{#each list}}<div class="panel glass"><div class="row" style="justify-content:space-between"><b>{{title}}</b><button class="btn danger" data-del="{{id}}">Delete</button></div><small class="meta">Started {{when}}{{#if affects}} · Affected {{affects}}{{/if}}</small></div>{{else}}<p class="meta">None yet.</p>{{/each}}</template>
