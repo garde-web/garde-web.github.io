@@ -173,30 +173,8 @@ code{font-size:.85rem;background:var(--soft);padding:2px 8px;border-radius:8px;u
 
 /* About */
 .eyebrow{display:inline-block;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:18px}
-/* About page mission */
-.mission {
-  padding: 7vh 0 5vh;
-  text-align: center;
-}
-
-.mission h1.big {
-  font-size: clamp(2.4rem, 5.2vw, 4.5rem);
-  line-height: 1.12;
-  max-width: 19ch;
-  margin: 0 auto .4em;
-}
-
-.mission h1.big em {
-  font-style: normal;
-  color: var(--accent);
-}
-
-.mission .lead {
-  font-size: 1.15rem;
-  max-width: 48ch;
-  margin: 0 auto;
-  color: var(--mute);
-}
+.mission{padding:6vh 0 4vh}.mission h1.big{font-size:clamp(3.2rem,9vw,7.2rem);line-height:1;max-width:14ch;margin-bottom:.3em}
+.mission h1.big em{font-style:normal;color:var(--accent)}.mission .lead{font-size:1.35rem;max-width:36ch}
 .aboutblock{padding:60px 0}.aboutblock>h2{margin-bottom:1em}
 .timeline{display:grid;gap:0;position:relative;max-width:760px}.timeline:before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:#ffd9cb}
 .tl{position:relative;padding:0 0 38px 40px}.tl:before{content:"";position:absolute;left:0;top:6px;width:16px;height:16px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 1px var(--accent)}
@@ -287,3 +265,9 @@ body.cooking main{padding-top:18px;min-height:100vh;display:flex;flex-direction:
 .articlebody img{max-width:100%;border-radius:16px;margin:10px 0}.articlebody a{color:var(--accent)}.articlebody hr{border:0;border-top:1px solid var(--edge);margin:2em 0}
 .boiler{padding:26px 30px;border-radius:var(--r);margin-top:36px}.boiler h3{font-size:1.25rem;margin:0 0 6px}.boiler p{color:#3d3832}.boiler h3:not(:first-child){margin-top:18px}
 @media(max-width:860px){.featured{grid-template-columns:1fr}.fbody{padding:26px}.fimg{min-height:220px}}
+
+/* Pantry basics + duplicate warning */
+.pitem{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.havebtn{border:1px solid var(--edge);background:#fff;border-radius:99px;padding:3px 12px;font:inherit;font-size:.78rem;color:var(--mute);cursor:pointer;white-space:nowrap;opacity:.75}.havebtn:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
+.pill .x{margin-left:2px}
+.dupwarn{background:#fff6e0;border:1px solid #f2d58a;color:#6b4a00;padding:14px 18px;border-radius:14px;margin:0 0 20px}.dupwarn a{color:inherit;font-weight:700}

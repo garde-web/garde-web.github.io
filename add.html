@@ -10,6 +10,7 @@
 <div class="prog" id="prog" hidden><span class="bar"><i></i></span><small id="pt"></small></div>
 {{/unless}}
 <p class="status" id="st" role="status">{{msg}}</p>
+{{#if dup}}<div class="dupwarn"><b>You may already have this recipe.</b> "{{dup.title}}" is already saved. <a href="#/recipe/{{dup.id}}">Open it</a>, or keep going to save another copy.</div>{{/if}}
 <div class="panel glass"><label for="title">Title</label><input id="title" value="{{title}}" required>
   <div class="two"><div><label for="time">Total time</label><input id="time" value="{{time}}" placeholder="45 min"></div><div><label for="serv">Servings</label><input id="serv" value="{{servings}}" inputmode="numeric"></div></div>
   <label for="ing">Ingredients (one per line)</label><textarea id="ing">{{ingredients}}</textarea>

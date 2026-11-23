@@ -38,7 +38,7 @@ export function mountExtras(ctx) {
       const pool = [...mine.map(r => ({ ...r, own: true })), ...lib.filter(r => !have2.has(r.id)).map(r => ({ ...r, own: false }))];
       const scored = pool.map(r => {
         const ings = (r.ingredients || []).map(x => ({ key: keyOf(x), line: x })).filter(x => x.key);
-        const covered = x => (staples && STAPLE.test(x.key)) || have.some(h => x.key.includes(h) || h.includes(x.key.split(" ").pop()) && x.key.split(" ").pop().length >= 3);
+        const mine2 = (ctx.have ? ctx.have() : []), covered = x => (staples && STAPLE.test(x.key)) || mine2.some(h => h && x.key.includes(h)) || have.some(h => x.key.includes(h) || h.includes(x.key.split(" ").pop()) && x.key.split(" ").pop().length >= 3);
         const missing = ings.filter(x => !covered(x));
         return { r, total: ings.length, have: ings.length - missing.length, missing: missing.map(x => x.key) };
       }).filter(x => x.total >= 2 && x.have / x.total >= 0.5 && x.have >= 1).sort((a, b) => b.have / b.total - a.have / a.total || a.missing.length - b.missing.length).slice(0, 12);

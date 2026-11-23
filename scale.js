@@ -57,7 +57,10 @@ export const ORDER = ["Produce", "Meat & seafood", "Dairy & eggs", "Bakery", "Pa
 export const aisleOf = (name, unit) => { const n = name.toLowerCase(); if (unit === "can") return "Pantry staples"; for (const [a, re] of AISLES) if (re.test(n)) return a; return "Other"; };
 
 // Combine chosen recipes (scaled to their target servings) into aisle groups
-export function buildList(recipes, serv) {
+// "I always have this": a name matches a staple when it is the same, or contains it as whole words (salt hides kosher salt)
+export const normName = n => String(n).toLowerCase().replace(/\(.*?\)/g, "").split(",")[0].trim().replace(/([a-z]{3})s$/, "$1");
+export const hasStaple = (name, have) => { const n = normName(name); return (have || []).some(h => h && (n === h || new RegExp("\\b" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b").test(n))); };
+export function buildList(recipes, serv, have = [], hidden = []) {
   const map = new Map();
   recipes.forEach(r => {
     const base = parseInt(r.servings) || 0, k = base ? (serv[r.id] || base) / base : 1;
@@ -69,7 +72,7 @@ export function buildList(recipes, serv) {
       map.set(key, e);
     });
   });
-  const out = {}; map.forEach(e => (out[aisleOf(e.name, e.unit)] ||= []).push(e));
+  const out = {}; map.forEach(e => { if (hasStaple(e.name, have)) { if (!hidden.includes(normName(e.name))) hidden.push(normName(e.name)); return; } (out[aisleOf(e.name, e.unit)] ||= []).push(e); });
   return out;
 }
 export const itemText = e => !e.counted ? e.name : [fmt(e.q), unitLabel(e.unit, e.q), !e.unit && e.q > 1 ? pluralName(e.name) : e.name].filter(Boolean).join(" ");

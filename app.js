@@ -1,18 +1,24 @@
 // Garde: boot, sign-in, routing and the recipe screens. Page markup lives in the .html files; styling in style.css.
 import * as fb from "./firebase-config.js";
 import { view, fill, esc, faqItems } from "./tpl.js";
-import { scaleLine, convertLine, convertText, buildList, itemText, ORDER } from "./scale.js";
+import { scaleLine, convertLine, convertText, buildList, itemText, normName, ORDER } from "./scale.js";
 import { resizeImage, thumbOf } from "./photos.js";
 import { mountCook } from "./cook.js";
 import { mountExtras } from "./extras.js";
 import { mountStatus } from "./status.js";
 import { mountNews } from "./news.js";
-import { extractRecipe, bookmarklet } from "./extract.js";
+import { extractRecipe, bookmarklet, recipeTools } from "./extract.js";
 import { mountSupport } from "./support.js";
 import { mountSous, weekEntries } from "./sous.js";
 import { onAuthStateChanged, signInWithPopup, signOut, reauthenticateWithPopup, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const { auth, db, provider } = fb, IMPORT_PROXY = fb.IMPORT_PROXY || ""; // IMPORT_PROXY is optional in firebase-config.js
+
+// A recipe link shared from a phone to the installed app arrives as ?url=... (see share_target in manifest.webmanifest)
+try {
+  const q = new URLSearchParams(location.search), m = [q.get("url"), q.get("text"), q.get("title")].filter(Boolean).join(" ").match(/https?:\/\/[^\s"<>]+/);
+  if (m) { sessionStorage.setItem("garde.shareurl", m[0]); history.replaceState(null, "", location.pathname + "#/add"); }
+} catch {}
 
 const $ = (s, r = document) => r.querySelector(s);
 const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
@@ -29,7 +35,7 @@ let stopReserve = null, stopBadges = null;
 const reserveOn = d => d.exists() && !(d.data().until > 0 && d.data().until < Date.now());
 onAuthStateChanged(auth, async u => {
   stopReserve?.(); stopBadges?.(); stopReserve = stopBadges = null;
-  user = u; isStaff = isAdmin = isReserve = false; recipes = null; badges.support = badges.staff = 0;
+  user = u; isStaff = isAdmin = isReserve = false; recipes = null; have = null; badges.support = badges.staff = 0;
   if (u) {
     getDoc(doc(db, "profiles", u.uid)).then(p => setDoc(doc(db, "profiles", u.uid), { name: u.displayName || "", email: u.email || "", photo: u.photoURL || "", lastSeen: serverTimestamp(), ...(p.exists() ? {} : { since: serverTimestamp() }) }, { merge: true })).catch(() => {});
     const [a, b] = await Promise.all([getDoc(doc(db, "staff", u.uid)).catch(() => null), getDoc(doc(db, "reserve", u.uid)).catch(() => null)]);
@@ -46,7 +52,7 @@ onAuthStateChanged(auth, async u => {
 window.addEventListener("hashchange", route);
 
 async function login() {
-  try { await signInWithPopup(auth, provider); let seed = ""; try { seed = sessionStorage.getItem("garde.seed"); } catch {} location.hash = seed ? "#/add" : "#/dashboard"; }
+  try { await signInWithPopup(auth, provider); let seed = ""; try { seed = sessionStorage.getItem("garde.seed") || sessionStorage.getItem("garde.shareurl"); } catch {} location.hash = seed ? "#/add" : "#/dashboard"; }
   catch (e) { toast("Sign-in didn't finish. Try again."); }
 }
 
@@ -180,30 +186,44 @@ const PROXIES = [...(IMPORT_PROXY ? [u => IMPORT_PROXY + "?url=" + encodeURIComp
 const grab = async (u, ms = 12000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { signal: c.signal }); if (!r.ok) throw 0; const x = await r.text(); if (x.length < 300) throw 0; return x; } finally { clearTimeout(t); } };
 
 // Turns loose text (page text or OCR) into title / ingredients / steps
-const JUNK = /^(print|pin|save|rate|share|jump to|did you make|leave a|subscribe|advertisement|skip to)\b/i;
 const QTY = /^(?:\d+(?:[.,/]\d+)?(?:\s+\d\/\d)?|[¼½¾⅓⅔⅛])\s*(?:-\s*\d+)?\s*(?:cups?|c|tbsps?|tsps?|tablespoons?|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|l|liters?|cloves?|pinch|dash|cans?|sticks?|slices?|pieces?)?\b/i;
+const TOOLS = recipeTools();
+const ING_H = /^(?:the )?ingredients?$/i, STEP_H = /^(?:instructions?|directions?|method|steps?|preparation|procedure|how to make\b.*)$/i;
+// A heading like these ends the recipe part of a page, so whatever follows (notes, comments, related posts) is never read as steps
+const STOP_H = /^(?:recipe )?notes?$|^nutrition(?: facts| information)?$|^comments?\b|^reviews?\b|^equipment$|^tools$|^related\b|^you (?:may|might) also like|^more recipes|^leave a (?:comment|reply|review)|^did you make this|^about the (?:author|blogger)|^faqs?$|^frequently asked|^tips?$|^popular\b|^recent\b/i;
+// Turns loose text (page text, pasted text or a photo scan) into title / ingredients / steps
 function parseText(text) {
   const out = { title: "", ingredients: [], steps: [], time: "", servings: "" };
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 1);
   const hasHead = lines.some(l => /^[#*\s]*ingredients?[*:\s]*$/i.test(l));
-  let mode = "";
+  const secs = []; let cur = null;
+  const loose = { ing: [], steps: [] };
   for (const l of lines) {
     const h = l.replace(/^[#*\s]+|[*:\s]+$/g, "");
-    if (/^ingredients?$/i.test(h)) { mode = "i"; continue; }
-    if (/^(instructions?|directions?|method|steps?|preparation|procedure)$/i.test(h)) { mode = "s"; continue; }
-    if (/^#{1,6}\s/.test(l)) { if (mode) mode = "x"; else if (!out.title) out.title = h; continue; }
+    if (ING_H.test(h)) { cur = { k: "i", items: [] }; secs.push(cur); continue; }
+    if (STEP_H.test(h) && h.length < 40) { cur = { k: "s", items: [] }; secs.push(cur); continue; }
+    if ((/^#{1,6}\s/.test(l) || (h.length < 40 && STOP_H.test(h))) && (cur || hasHead)) { if (/^#{1,6}\s/.test(l) && !cur && !out.title) out.title = h; cur = null; continue; }
+    if (/^#{1,6}\s/.test(l)) { if (!out.title) out.title = h; continue; }
     const sv = /(?:serves|servings?|yield|makes)\s*:?\s*(\d+)/i.exec(l); if (sv && !out.servings) out.servings = sv[1];
     const tm = /(?:total|ready in)(?:\s*time)?\s*:?\s*(\d+\s*(?:h|hr|hrs|hours?|min|minutes?)(?:\s*\d+\s*(?:min|minutes?))?)/i.exec(l); if (tm && !out.time) out.time = tm[1];
-    const c = l.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^[*\-•·▢☐\s]+/, "").replace(/^\d+[.)]\s+/, "").replace(/\*+/g, "").trim();
-    if (!c || JUNK.test(c)) continue;
-    if (mode === "i") { if (c.length < 140) out.ingredients.push(c); }
-    else if (mode === "s") { out.steps.push(c); if (out.steps.length >= 30) mode = "x"; }
-    else if (mode === "") {
-      if (hasHead) { if (!out.title && c.length < 80) out.title = c; }
-      else if (!out.title && c.length < 70 && !QTY.test(c)) out.title = c;
-      else if (QTY.test(c) && c.length < 70) out.ingredients.push(c);
-      else if (c.length > 25 && out.ingredients.length) out.steps.push(c);
-    }
+    if (cur) { cur.items.push(l); continue; }
+    if (hasHead) { if (!out.title && l.length < 80 && !/^[\[(*▢☐-]/.test(l)) out.title = TOOLS.cleanStep(l) || ""; continue; }
+    // No headings at all (typically a photo of a card): ingredients look like quantities, steps are the longer lines after them
+    const c = TOOLS.cleanStep(l); if (!c) continue;
+    if (!out.title && c.length < 70 && !QTY.test(c)) out.title = c;
+    else if (QTY.test(c) && c.length < 70) loose.ing.push(l);
+    else if (c.length > 25 && loose.ing.length) loose.steps.push(l);
+  }
+  if (secs.length) {
+    // Several "Ingredients" headings can appear (menus, jump links): use the fullest one, then the first steps block after it
+    const ingSecs = secs.map((s, i) => ({ i, s, items: s.k === "i" ? TOOLS.cleanIngredients(s.items) : [] })).filter(x => x.items.length);
+    const bestIng = ingSecs.sort((a, b) => b.items.length - a.items.length)[0];
+    if (bestIng) out.ingredients = bestIng.items;
+    const stepSecs = secs.map((s, i) => ({ i, items: s.k === "s" ? TOOLS.cleanSteps(s.items) : [] })).filter(x => x.items.length);
+    const after = stepSecs.filter(x => !bestIng || x.i > bestIng.i);
+    out.steps = (after[0] || stepSecs[0] || { items: [] }).items;
+  } else {
+    out.ingredients = TOOLS.cleanIngredients(loose.ing); out.steps = TOOLS.cleanSteps(loose.steps);
   }
   return out;
 }
@@ -213,27 +233,34 @@ function fromText(md, url) {
   const p = parseText(md.replace(/^(Title|URL Source|Markdown Content|Published Time):.*$/gm, ""));
   if (p.ingredients.length < 2 || !p.steps.length) return null;
   const img = [...md.matchAll(/!\[[^\]]*\]\((https?:[^)\s]+)\)/g)].map(m => m[1]).find(u => /\.(jpe?g|png|webp)/i.test(u) && !/logo|icon|avatar|sprite|badge/i.test(u));
-  return { ...p, title: txt(title.split(/\s[|–-]\s/)[0]) || p.title, source: url, image: img || "" };
+  return { ...p, title: txt(title.split(/\s[|–-]\s/)[0]) || p.title, source: url, image: img || "", how: "text" };
 }
 
+const HOW_RANK = { structured: 3, plugin: 2, layout: 1, text: 0 };
 async function importUrl(url) {
-  let seen = "";
-  const fromPage = h => { seen ||= h; return extractRecipe(new DOMParser().parseFromString(h, "text/html"), url) || Promise.reject(); };
+  let seen = ""; const cands = [];
+  // Structured recipe data is the most trustworthy, so it wins immediately. Anything weaker is kept, and the best one is used if nothing better arrives.
+  const judge = r => { cands.push(r); return r.how === "structured" ? r : Promise.reject(); };
+  const fromPage = h => { seen ||= h; const r = extractRecipe(new DOMParser().parseFromString(h, "text/html"), url); return r ? judge(r) : Promise.reject(); };
   const html = PROXIES.map(p => grab(p(url)).then(fromPage));
   // The text-reader fallback only starts if the page routes are slow or have all failed
-  const reader = Promise.race([new Promise(r => setTimeout(r, 3500)), Promise.allSettled(html)]).then(() => grab("https://r.jina.ai/" + url, 25000)).then(m => fromText(m, url) || Promise.reject());
+  const reader = Promise.race([new Promise(r => setTimeout(r, 3500)), Promise.allSettled(html)]).then(() => grab("https://r.jina.ai/" + url, 25000)).then(m => { const r = fromText(m, url); return r ? judge(r) : Promise.reject(); });
   try { return await Promise.any([...html, reader]); } catch {}
+  if (cands.length) return cands.sort((a, b) => (HOW_RANK[b.how] || 0) - (HOW_RANK[a.how] || 0) || b.steps.length - a.steps.length)[0];
   if (!seen) throw new Error("fetch");
   const dom = new DOMParser().parseFromString(seen, "text/html"), og = k => dom.querySelector(`meta[property="og:${k}"]`)?.content || "";
   throw Object.assign(new Error("norecipe"), { partial: { title: txt(og("title") || dom.title), image: absUrl(og("image"), url), source: url } });
 }
 
+// A short, honest summary of what an import found, with a warning when it was a best guess
+const importNote = (x, host) => `Imported${host ? " from " + host : ""}: ${x.ingredients.length} ingredients and ${x.steps.length} steps.` +
+  (x.how === "layout" || x.how === "text" ? " This site doesn't publish clean recipe data, so this is a best guess. Please check the steps." : x.steps.length ? " Check the details, then save." : " No steps were found, so add them below.");
 const takeSeed = () => {
   try {
     const v = sessionStorage.getItem("garde.seed"); sessionStorage.removeItem("garde.seed"); if (!v) return null;
     const j = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(v.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0))));
     const str = (x, n) => typeof x === "string" ? x.slice(0, n) : "", arr = x => Array.isArray(x) ? x.filter(i => typeof i === "string").slice(0, 80).map(i => i.slice(0, 600)) : [];
-    return { title: str(j.title, 200), source: str(j.source, 600), time: str(j.time, 40), servings: str(j.servings, 6), image: str(j.image, 800), ingredients: arr(j.ingredients), steps: arr(j.steps), tags: arr(j.tags).slice(0, 6) };
+    return { title: str(j.title, 200), source: str(j.source, 600), time: str(j.time, 40), servings: str(j.servings, 6), image: str(j.image, 800), ingredients: arr(j.ingredients), steps: arr(j.steps), tags: arr(j.tags).slice(0, 6), how: str(j.how, 12) };
   } catch { return null; }
 };
 
@@ -268,12 +295,13 @@ function form(id) {
   const base = { title: "", source: "", time: "", servings: "", image: "", ingredients: [], steps: [], tags: [], notes: "" };
   const fill = (a, b) => ({ ...a, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v && (!Array.isArray(v) || v.length))) });
   const seed = id ? null : takeSeed();
+  let pending = id ? "" : (seed ? (takeShare(), "") : takeShare()), existing = [];
   if (!id) warm().catch(() => {});
   // Photos live outside render() so they survive the page being redrawn after an import
   const photo = { thumb: "", full: "", scan: "", keepScan: true };
   const render = async (r, msg = "") => {
     const ok = await show("add", { editing: !!id, msg, title: r.title, time: r.time, servings: r.servings, ingredients: r.ingredients.join("\n"), steps: r.steps.join("\n"), tags: r.tags.join(", "), image: r.image, notes: r.notes,
-      smart: isReserve && !!IMPORT_PROXY, preview: photo.full || photo.thumb, hasScan: !!photo.scan, keepScan: photo.keepScan });
+      smart: isReserve && !!IMPORT_PROXY, dup: id ? null : dupOf(r, existing), preview: photo.full || photo.thumb, hasScan: !!photo.scan, keepScan: photo.keepScan });
     if (!ok) return;
     const st = m => { const e = $("#st"); if (e) e.textContent = m; };
     const busy = (on, label, p) => { const b = $("#prog"); if (!b) return; b.hidden = !on; $("#pt").textContent = label || ""; b.classList.toggle("ind", p == null); b.querySelector("i").style.width = p == null ? "40%" : Math.round(p * 100) + "%"; };
@@ -286,10 +314,11 @@ function form(id) {
         u = u.trim(); if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(u)) u = "https://" + u;
         if (!/^https?:\/\//i.test(u)) return st("Paste a full recipe link first.");
         busy(true, "Fetching the recipe…"); st("");
-        try { const x = await importUrl(u); busy(false); render(fill(cur(), x), "Imported. Check the details, then save."); }
+        try { const x = await importUrl(u); busy(false); render(fill(cur(), x), importNote(x)); }
         catch (e) { busy(false); const m = "Some sites block automatic import. Use the Save to Garde button below, or paste the recipe text and Garde will pick out the ingredients and steps."; if (e.partial) render(fill(cur(), e.partial), "I found the title and photo but not the recipe. " + m); else st("Couldn't open that page. " + m); const b = $("#bm"); if (b) b.open = true; }
       };
       $("#imp").onclick = () => doImport($("#url").value);
+      if (pending) { const u = pending; pending = ""; $("#url").value = u; doImport(u); }
       $("#url").onkeydown = e => { if (e.key === "Enter") doImport(e.target.value); };
       $("#bml").href = bookmarklet(location.origin + location.pathname); $("#bml").onclick = e => { e.preventDefault(); toast("Drag this button up to your bookmarks bar"); };
       $("#pgo").onclick = () => { const t = $("#ptxt").value.trim(); if (t.length < 40) return st("Paste the recipe text first."); const p = parseText(t); if (!p.ingredients.length && !p.steps.length) return st("I couldn't find ingredients or steps in that text. Make sure it includes the ingredient list."); render(fill(cur(), p), "Recipe extracted. Check the details, then save."); };
@@ -322,6 +351,7 @@ function form(id) {
     }
     $("#save").onclick = async () => {
       const d = cur(); if (!d.title.trim()) { toast("Add a title first"); return; }
+      if (!id) { const d0 = dupOf(d, existing); if (d0 && !confirm(`You already have "${d0.title}". Save another copy anyway?`)) return; }
       d.thumb = photo.thumb || "";
       let scan = photo.keepScan ? photo.scan : "";
       if ((photo.full || "").length + (scan || "").length > 900000) { scan = ""; toast("The scanned card was too large to keep, so only the recipe was saved."); }
@@ -338,7 +368,7 @@ function form(id) {
       } catch { toast("Couldn't save. Check your connection and try again."); }
     };
   };
-  if (!id) { let host = ""; try { host = new URL(seed.source).hostname.replace(/^www\./, ""); } catch {} return render(seed ? fill(base, seed) : base, seed ? "Imported" + (host ? " from " + host : "") + ". Check the details, then save." : ""); }
+  if (!id) { let host = ""; try { host = new URL(seed.source).hostname.replace(/^www\./, ""); } catch {} load().then(x => { existing = x; }).catch(() => {}).finally(() => render(seed ? fill(base, seed) : base, seed ? importNote(seed, host) : "")); return; }
   (async () => {
     const [s, ps] = await Promise.all([getDoc(doc(db, "users", user.uid, "recipes", id)), getDoc(doc(db, "users", user.uid, "photos", id)).catch(() => null)]);
     if (!s.exists()) { await show("recipe#notfound"); return; }
@@ -346,6 +376,21 @@ function form(id) {
     render({ ...base, ...s.data() });
   })();
 }
+
+// ---- Duplicate detection ----
+const normUrl = u => { try { const x = new URL(u), keep = [...x.searchParams].filter(([k]) => !/^(utm_|fbclid|gclid|mc_|ref$|source$|cmp)/i.test(k)).sort(); return x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "") + (keep.length ? "?" + keep.map(p => p.join("=")).join("&") : ""); } catch { return ""; } };
+const dupOf = (r, list) => { const u = normUrl(r.source || ""), t = (r.title || "").trim().toLowerCase(); return list.find(x => (u && normUrl(x.source || "") === u) || (t && (x.title || "").trim().toLowerCase() === t)) || null; };
+const takeShare = () => { try { const v = sessionStorage.getItem("garde.shareurl"); sessionStorage.removeItem("garde.shareurl"); return v || ""; } catch { return ""; } };
+
+// ---- "I always have this" list (synced to your account) ----
+let have = null;
+const haveRef = () => doc(db, "users", user.uid, "meta", "pantry");
+async function loadHave() {
+  if (have) return have;
+  try { const s = await getDoc(haveRef()); have = s.exists() ? (s.data().have || []) : lsGet("garde.have", []); } catch { have = lsGet("garde.have", []); }
+  return have;
+}
+const saveHave = () => { lsSet("garde.have", have); setDoc(haveRef(), { have }, { merge: true }).catch(() => {}); };
 
 // ---- Collections ----
 async function collections() {
@@ -361,17 +406,24 @@ async function pantry() {
   const planServ = {}; plan.forEach(e => { planServ[e.rid] = (planServ[e.rid] || 0) + (e.servings || 0); });
   let pick = lsGet("garde.pick", []).filter(id => all.some(r => r.id === id)), done = lsGet("garde.done", []), serv = lsGet("garde.serv", {});
   const planned = all.filter(r => planServ[r.id]);
+  await loadHave();
+  const BASICS = ["salt", "black pepper", "olive oil", "butter", "flour", "sugar", "garlic", "water"];
   const draw = async () => {
-    const groups = buildList(all.filter(r => pick.includes(r.id) || planServ[r.id]), { ...serv, ...planServ });
+    const hidden = [], groups = buildList(all.filter(r => pick.includes(r.id) || planServ[r.id]), { ...serv, ...planServ }, have, hidden);
     const ok = await show("pantry", { any: all.length > 0, hasDone: done.length > 0,
       planned: planned.map(r => ({ id: r.id, title: r.title, servings: planServ[r.id] })),
+      haveList: have, suggest: BASICS.filter(b => !have.includes(b)), hiddenText: hidden.join(", "),
       recipes: all.filter(r => !planServ[r.id]).map(r => { const base = parseInt(r.servings) || 0; return { id: r.id, title: r.title, checked: pick.includes(r.id), base, cur: serv[r.id] || base }; }),
-      aisles: ORDER.filter(a => groups[a]).map(a => ({ name: a, items: groups[a].map(e => { const id = a + "|" + e.key; return { id, text: itemText(e), checked: done.includes(id) }; }) })) });
+      aisles: ORDER.filter(a => groups[a]).map(a => ({ name: a, items: groups[a].map(e => { const id = a + "|" + e.key; return { id, text: itemText(e), checked: done.includes(id), name: normName(e.name) }; }) })) });
     if (!ok) return;
     app.querySelectorAll("[data-r]").forEach(c => c.onchange = () => { pick = c.checked ? [...pick, c.dataset.r] : pick.filter(x => x !== c.dataset.r); lsSet("garde.pick", pick); draw(); });
     app.querySelectorAll("[data-i]").forEach(c => c.onchange = () => { const i = c.dataset.i; done = c.checked ? [...done, i] : done.filter(x => x !== i); lsSet("garde.done", done); draw(); });
     app.querySelectorAll("[data-s] button").forEach(b => b.onclick = () => { const id = b.parentElement.dataset.s, r = all.find(x => x.id === id), base = parseInt(r.servings) || 1; serv[id] = Math.max(1, Math.min(99, (serv[id] || base) + +b.dataset.d)); lsSet("garde.serv", serv); draw(); });
     if ($("#clr")) $("#clr").onclick = () => { done = []; lsSet("garde.done", done); draw(); };
+    const addHave = raw => { const n = normName(raw); if (!n || have.includes(n)) return; have = [...have, n]; saveHave(); draw(); };
+    app.querySelectorAll("[data-have]").forEach(b => b.onclick = () => addHave(b.dataset.have));
+    app.querySelectorAll("[data-unhave]").forEach(b => b.onclick = () => { have = have.filter(x => x !== b.dataset.unhave); saveHave(); draw(); });
+    if ($("#haveaddbtn")) { const go = () => { const v = $("#haveadd").value; v.split(",").forEach(addHave); }; $("#haveaddbtn").onclick = go; $("#haveadd").onkeydown = e => { if (e.key === "Enter") go(); }; }
     const text = ORDER.filter(a => groups[a]).map(a => a + "\n" + groups[a].map(e => "- " + itemText(e)).join("\n")).join("\n\n");
     if ($("#cpl")) $("#cpl").onclick = async () => { try { await navigator.clipboard.writeText("Garde Pantry\n\n" + text); toast("List copied"); } catch { toast("Couldn't copy. Select the list and copy it by hand."); } };
     if ($("#shl") && navigator.share) { $("#shl").hidden = false; $("#shl").onclick = () => navigator.share({ title: "Garde Pantry", text }).catch(() => {}); }
@@ -387,7 +439,7 @@ async function deleteAccount() {
   try {
     await reauthenticateWithPopup(auth.currentUser, provider);
     const uid = user.uid, wipe = async s => { await Promise.all(s.docs.map(d => deleteDoc(d.ref))); };
-    for (const sub of ["recipes", "photos", "plans", "templates"]) await wipe(await getDocs(collection(db, "users", uid, sub)));
+    for (const sub of ["recipes", "photos", "plans", "templates", "meta"]) await wipe(await getDocs(collection(db, "users", uid, sub)));
     await wipe(await getDocs(query(collection(db, "shared"), where("uid", "==", uid))));
     await deleteDoc(doc(db, "profiles", uid)).catch(() => {});
     await deleteUser(auth.currentUser);
@@ -411,7 +463,7 @@ async function settings() {
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const stashSeed = o => { try { sessionStorage.setItem("garde.seed", btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")); } catch {} };
-const ctx = { db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, stashSeed, refreshBanner: loadBanner,
+const ctx = { have: () => have || [], db, app, $, esc, toast, FREE_LIMIT, load, col, lsGet, lsSet, importUrl, show, fill, view, faqItems, stashSeed, refreshBanner: loadBanner,
   invalidate: () => { recipes = null; }, setUnsub: f => { unsub = f; },
   get smart() { return !!IMPORT_PROXY; }, get user() { return user; }, get isStaff() { return isStaff; }, get isAdmin() { return isAdmin; }, get isReserve() { return isReserve; } };
 const P = mountSupport(ctx), S = mountSous(ctx), C = mountCook(ctx), X = mountExtras(ctx), ST = mountStatus(ctx), N = mountNews(ctx);
