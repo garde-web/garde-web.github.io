@@ -173,8 +173,31 @@ code{font-size:.85rem;background:var(--soft);padding:2px 8px;border-radius:8px;u
 
 /* About */
 .eyebrow{display:inline-block;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:18px}
-.mission{padding:6vh 0 4vh}.mission h1.big{font-size:clamp(3.2rem,9vw,7.2rem);line-height:1;max-width:14ch;margin-bottom:.3em}
-.mission h1.big em{font-style:normal;color:var(--accent)}.mission .lead{font-size:1.35rem;max-width:36ch}
+/* About page mission */
+.mission {
+  padding: 7vh 0 5vh;
+  text-align: center;
+}
+
+.mission h1.big {
+  font-size: clamp(2.4rem, 5.2vw, 4.5rem);
+  line-height: 1.12;
+  max-width: 19ch;
+  margin: 0 auto .4em;
+}
+
+.mission h1.big em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.mission .lead {
+  font-size: 1.15rem;
+  max-width: 48ch;
+  margin: 0 auto;
+  color: var(--mute);
+}
+
 .aboutblock{padding:60px 0}.aboutblock>h2{margin-bottom:1em}
 .timeline{display:grid;gap:0;position:relative;max-width:760px}.timeline:before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:#ffd9cb}
 .tl{position:relative;padding:0 0 38px 40px}.tl:before{content:"";position:absolute;left:0;top:6px;width:16px;height:16px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 1px var(--accent)}
