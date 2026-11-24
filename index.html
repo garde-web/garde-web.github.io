@@ -22,7 +22,16 @@
 <div class="toast" id="toast" role="status"></div>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script>
-addEventListener("error", e => { const a = document.getElementById("app"); if (a && !a.children.length) a.innerHTML = '<div style="max-width:560px;margin:10vh auto;text-align:center;line-height:1.6"><h2>Garde couldn\'t start</h2><p style="color:#6b645c">' + String(e.message || "A file failed to load").replace(/</g, "&lt;") + '</p><p style="color:#6b645c">Press F12 and open the Console for details. Make sure every file from the download was uploaded next to index.html.</p></div>'; });
+addEventListener("error", e => {
+  const a = document.getElementById("app"); if (!a || a.children.length) return;
+  // "does not provide an export named ..." means one file is older than the others
+  const m = /requested module '\.\/([\w.-]+)' does not provide an export named/.exec(e.message || "");
+  const box = document.createElement("div"); box.style.cssText = "max-width:560px;margin:10vh auto;text-align:center;line-height:1.6";
+  const h = document.createElement("h2"), p = document.createElement("p"), p2 = document.createElement("p"); p.style.color = p2.style.color = "#6b645c";
+  if (m) { h.textContent = m[1] + " is out of date"; p.textContent = "Upload the newest " + m[1] + " from the latest download, next to index.html, then refresh with Ctrl+Shift+R."; }
+  else { h.textContent = "Garde couldn't start"; p.textContent = String(e.message || "A file failed to load"); p2.textContent = "Press F12 and open the Console for details. Make sure every file from the download was uploaded next to index.html."; }
+  box.append(h, p, p2); a.append(box);
+});
 </script>
 <script>
 // If the app can't load, find out exactly which files are missing.
