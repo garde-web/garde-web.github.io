@@ -1,0 +1,13 @@
+{{> staff#head}}
+<p class="lead">Settings just for you. Other staff can't see or change these. You are signed in as <b>{{role}}</b>.</p>
+<div class="panel glass"><h3>Replying</h3>
+  <label for="msig" style="margin-top:0">Signature added to the end of every reply</label><textarea id="msig" style="min-height:90px" maxlength="500" placeholder="Thanks,&#10;Sam from Garde">{{signature}}</textarea>
+  <label class="chk" style="margin-top:18px"><input type="checkbox" id="maa"{{#if autoAssign}} checked{{/if}}> Assign a ticket to me when I reply to it</label>
+  <label for="mfl">Open the Tickets tab on</label><select id="mfl" style="max-width:260px">{{#each filters}}<option value="{{v}}"{{#if on}} selected{{/if}}>{{label}}</option>{{/each}}</select></div>
+<div class="panel glass"><h3>Alerts for new tickets</h3><p class="meta">These only work while Garde is open in a browser tab.</p>
+  <label class="chk" style="margin-top:14px"><input type="checkbox" id="msd"{{#if sound}} checked{{/if}}> Play a sound when a new ticket arrives</label>
+  {{#if canDesktop}}<label class="chk" style="margin-top:14px"><input type="checkbox" id="mdt"{{#if desktop}} checked{{/if}}> Show a desktop notification</label>{{else}}<p class="meta" style="margin-top:14px">Desktop notifications aren't available in this browser.</p>{{/if}}
+  <div class="row" style="margin-top:18px"><button class="btn" id="mtest">Send a test alert</button></div></div>
+<div class="panel glass"><h3>What you can do</h3><p class="meta">Set by an admin. Ask an admin if you need more access.</p>
+  <ul class="permlist">{{#each perms}}<li class="{{#if on}}yes{{else}}no{{/if}}">{{#if on}}✓{{else}}–{{/if}} {{label}}</li>{{/each}}</ul></div>
+<div class="row"><button class="btn main" id="msave">Save my settings</button></div>
